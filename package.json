@@ -1,0 +1,26 @@
+{
+    "name": "sealed-auction-fhevm",
+    "version": "1.0.0",
+    "private": true,
+    "scripts": {
+        "compile": "hardhat compile",
+        "test": "hardhat test",
+        "deploy": "hardhat run scripts/deploy.ts --network hardhat"
+    },
+    "devDependencies": {
+        "@fhevm/hardhat-plugin": "^0.0.1-4",
+        "@fhevm/mock-utils": "^0.0.1-5",
+        "@fhevm/solidity": "^0.7.0",
+        "@nomicfoundation/hardhat-chai-matchers": "^2.1.0",
+        "@nomicfoundation/hardhat-ethers": "^3.1.0",
+        "@nomicfoundation/hardhat-network-helpers": "^1.1.0",
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@types/chai": "^4.3.20",
+        "@types/mocha": "^10.0.10",
+        "chai": "^4.5.0",
+        "ethers": "^6.15.0",
+        "hardhat": "^2.26.3",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.9.2"
+    }
+}
