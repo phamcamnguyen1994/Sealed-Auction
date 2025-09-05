@@ -53,13 +53,17 @@ contract SealedAuction is SepoliaConfig {
         // Validate & convert input into euint64
         euint64 bid = FHE.fromExternal(bidCt, inputProof);
 
+        // Compute if this bidder is leading BEFORE mutating state
+        ebool leadNow;
         if (FHE.isInitialized(highestBidEnc)) {
             ebool better = FHE.lt(highestBidEnc, bid); // bid > highest?
+            leadNow = better;
             // Confidential branching using FHE.select
             highestBidEnc = FHE.select(better, bid, highestBidEnc);
             winnerEnc     = FHE.select(better, FHE.asEaddress(msg.sender), winnerEnc);
         } else {
-            // First bid
+            // First bid always leads
+            leadNow = FHE.lt(FHE.asEuint64(0), FHE.asEuint64(1));
             highestBidEnc = bid;
             winnerEnc     = FHE.asEaddress(msg.sender);
         }
@@ -72,7 +76,10 @@ contract SealedAuction is SepoliaConfig {
         emit BidPlaced(msg.sender);
 
         // Let bidder privately learn if they lead
-        return FHE.lt(FHE.asEuint64(0), FHE.select(FHE.lt(highestBidEnc, bid), FHE.asEuint64(1), FHE.asEuint64(0)));
+        // Authorize bidder and the dapp contract to decrypt this result
+        FHE.allow(leadNow, msg.sender);
+        FHE.allowThis(leadNow);
+        return leadNow;
         // (We return ebool; in tests/UI, decrypt with fhevm.userDecryptEbool)
     }
 
@@ -117,4 +124,8 @@ contract SealedAuction is SepoliaConfig {
         _bids     = bids;
     }
 }
-Notes - Uses FHE.fromExternal per current guides. - Confidential branching uses FHE.select (no plaintext if on ebools). - Permissions: FHE.allowThis(...) during bidding; final FHE.allow(..., viewer) after finalize & on grantView.
+// Notes:
+// - Uses FHE.fromExternal per current guides.
+// - Confidential branching uses FHE.select (no plaintext if on ebools).
+// - Permissions: FHE.allowThis(...) during bidding; final FHE.allow(..., viewer)
+//   after finalize & on grantView.
