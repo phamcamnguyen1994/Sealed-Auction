@@ -43,11 +43,8 @@ contract SealedAuction is SepoliaConfig {
         FHE.allow(winnerEnc, viewer);
     }
 
-    /// @notice Place an encrypted bid. Returns encrypted boolean: whether you're now leading.
-    function placeBid(externalEuint64 bidCt, bytes calldata inputProof)
-        external
-        returns (ebool isLeading)
-    {
+    /// @notice Place an encrypted bid (strict sealed: no feedback returned)
+    function placeBid(externalEuint64 bidCt, bytes calldata inputProof) external {
         require(!ended && block.timestamp < endTime, "auction ended");
 
         // Validate & convert input into euint64
@@ -75,12 +72,7 @@ contract SealedAuction is SepoliaConfig {
         unchecked { bids += 1; }
         emit BidPlaced(msg.sender);
 
-        // Let bidder privately learn if they lead
-        // Authorize bidder and the dapp contract to decrypt this result
-        FHE.allow(leadNow, msg.sender);
-        FHE.allowThis(leadNow);
-        return leadNow;
-        // (We return ebool; in tests/UI, decrypt with fhevm.userDecryptEbool)
+        // Strict sealed: do not return or expose leading feedback
     }
 
     /// @notice End the auction. Grants seller decrypt permissions.

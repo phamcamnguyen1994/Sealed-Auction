@@ -36,12 +36,8 @@ input.add64(amount);
 const enc = await input.encrypt();
 
 
-const encLead = await auction.connect(bidder).placeBid.staticCall(enc.handles[0], enc.inputProof);
 await (await auction.connect(bidder).placeBid(enc.handles[0], enc.inputProof)).wait();
-
-
-const isLead = await hre.fhevm.userDecryptEbool(encLead, auctionAddr, bidder);
-console.log(`Bidder ${bidderIndex} (${bidder.address}) bid ${amount}. Leading?`, isLead);
+console.log(`Bidder ${bidderIndex} (${bidder.address}) bid ${amount}. (strict sealed: no feedback)`);
 }
 
 

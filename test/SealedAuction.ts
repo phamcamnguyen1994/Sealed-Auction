@@ -21,26 +21,17 @@ describe("SealedAuction (FHE)", function () {
       return await input.encrypt();
     }
 
-    // Alice bids 50 (leads initially)
+    // Alice bids 50
     const bAlice = await encBid(alice, 50);
-    const encLeadAlice = await auction.connect(alice).placeBid.staticCall(bAlice.handles[0], bAlice.inputProof);
     await (await auction.connect(alice).placeBid(bAlice.handles[0], bAlice.inputProof)).wait();
-    const isLeadAlice = await fhevm.userDecryptEbool(encLeadAlice, address, alice);
-    expect(isLeadAlice).to.equal(true);
 
-    // Bob bids 70 (should lead)
+    // Bob bids 70
     const bBob = await encBid(bob, 70);
-    const encLeadBob = await auction.connect(bob).placeBid.staticCall(bBob.handles[0], bBob.inputProof);
     await (await auction.connect(bob).placeBid(bBob.handles[0], bBob.inputProof)).wait();
-    const isLeadBob = await fhevm.userDecryptEbool(encLeadBob, address, bob);
-    expect(isLeadBob).to.equal(true);
 
-    // Charlie bids 65 (should NOT lead)
+    // Charlie bids 65
     const bCharlie = await encBid(charlie, 65);
-    const encLeadCharlie = await auction.connect(charlie).placeBid.staticCall(bCharlie.handles[0], bCharlie.inputProof);
     await (await auction.connect(charlie).placeBid(bCharlie.handles[0], bCharlie.inputProof)).wait();
-    const isLeadCharlie = await fhevm.userDecryptEbool(encLeadCharlie, address, charlie);
-    expect(isLeadCharlie).to.equal(false);
 
     // End auction
     await time.increase(3600);

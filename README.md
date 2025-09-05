@@ -74,3 +74,17 @@ npx hardhat verify --network sepolia 0x...DEPLOYED_ADDRESS... 3600
 npx hardhat run scripts/genabi.ts --network sepolia
 # Output: abi/SealedAuction.json
 ```
+
+## Sepolia (Relayer SDK, no mock)
+```bash
+# Install SDK
+npm i @zama-fhe/relayer-sdk ethers
+
+# Bid on Sepolia (client-side encrypt via relayer SDK)
+$env:AUCTION="0x..."; $env:PRIVATE_KEY="0x..."; $env:BID="70"
+npx ts-node scripts/bid-sepolia.ts
+
+# Finalize & decrypt as seller
+$env:AUCTION="0x..."; $env:PRIVATE_KEY="0x..."
+npx ts-node scripts/finalize-sepolia.ts
+```

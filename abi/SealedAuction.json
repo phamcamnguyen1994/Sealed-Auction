@@ -1,6 +1,6 @@
 {
   "name": "SealedAuction",
-  "address": "0x54AFAEb4cbE400e0c6c50A770E0a60e963FBe130",
+  "address": "0xEc52A57f7533871477CbF8b716569c7836C263ce",
   "chainId": 11155111,
   "abi": [
     {
@@ -173,13 +173,7 @@
         }
       ],
       "name": "placeBid",
-      "outputs": [
-        {
-          "internalType": "ebool",
-          "name": "isLeading",
-          "type": "bytes32"
-        }
-      ],
+      "outputs": [],
       "stateMutability": "nonpayable",
       "type": "function"
     },

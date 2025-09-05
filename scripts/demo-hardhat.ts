@@ -26,24 +26,18 @@ async function main() {
 
   // Alice bids 50
   const bAlice = await encBid(auctionAddr, alice, 50);
-  const encLeadAlice = await auction.connect(alice).placeBid.staticCall(bAlice.handles[0], bAlice.inputProof);
   await (await auction.connect(alice).placeBid(bAlice.handles[0], bAlice.inputProof)).wait();
-  const isLeadAlice = await hre.fhevm.userDecryptEbool(encLeadAlice, auctionAddr, alice);
-  console.log("Alice leading?", isLeadAlice);
+  console.log("Alice bid submitted (strict sealed: no feedback)");
 
   // Bob bids 70
   const bBob = await encBid(auctionAddr, bob, 70);
-  const encLeadBob = await auction.connect(bob).placeBid.staticCall(bBob.handles[0], bBob.inputProof);
   await (await auction.connect(bob).placeBid(bBob.handles[0], bBob.inputProof)).wait();
-  const isLeadBob = await hre.fhevm.userDecryptEbool(encLeadBob, auctionAddr, bob);
-  console.log("Bob leading?", isLeadBob);
+  console.log("Bob bid submitted (strict sealed: no feedback)");
 
   // Charlie bids 65
   const bCharlie = await encBid(auctionAddr, charlie, 65);
-  const encLeadCharlie = await auction.connect(charlie).placeBid.staticCall(bCharlie.handles[0], bCharlie.inputProof);
   await (await auction.connect(charlie).placeBid(bCharlie.handles[0], bCharlie.inputProof)).wait();
-  const isLeadCharlie = await hre.fhevm.userDecryptEbool(encLeadCharlie, auctionAddr, charlie);
-  console.log("Charlie leading?", isLeadCharlie);
+  console.log("Charlie bid submitted (strict sealed: no feedback)");
 
   // Move time forward to end auction
   await time.increase(3600);
