@@ -3,7 +3,10 @@
   "builds": [
     {
       "src": "packages/site/package.json",
-      "use": "@vercel/next"
+      "use": "@vercel/next",
+      "config": {
+        "distDir": ".next"
+      }
     }
   ],
   "routes": [
@@ -11,5 +14,10 @@
       "src": "/(.*)",
       "dest": "packages/site/$1"
     }
-  ]
+  ],
+  "functions": {
+    "packages/site/app/**/*.tsx": {
+      "runtime": "nodejs18.x"
+    }
+  }
 }
