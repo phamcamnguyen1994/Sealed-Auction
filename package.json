@@ -9,7 +9,9 @@
         "deploy:sepolia": "hardhat run scripts/deploy-and-update.ts --network sepolia",
         "deploy:localhost": "hardhat run scripts/deploy-and-update.ts --network localhost",
         "genabi": "hardhat run scripts/genabi.ts --network sepolia",
-        "genabi:localhost": "hardhat run scripts/genabi.ts --network localhost"
+        "genabi:localhost": "hardhat run scripts/genabi.ts --network localhost",
+        "build": "cd packages/site && npm run build",
+        "dev": "cd packages/site && npm run dev"
     },
     "devDependencies": {
         "@fhevm/hardhat-plugin": "^0.0.1-4",
