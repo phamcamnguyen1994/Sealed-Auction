@@ -13,16 +13,6 @@ const nextConfig = {
       net: false,
       tls: false,
     };
-    // Ignore require() warnings
-    config.module.rules.push({
-      test: /\.js$/,
-      use: {
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-env'],
-        },
-      },
-    });
     return config;
   },
   experimental: {
