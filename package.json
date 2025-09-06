@@ -5,7 +5,11 @@
     "scripts": {
         "compile": "hardhat compile",
         "test": "hardhat test",
-        "deploy": "hardhat run scripts/deploy.ts --network hardhat"
+        "deploy": "hardhat run scripts/deploy.ts --network hardhat",
+        "deploy:sepolia": "hardhat run scripts/deploy-and-update.ts --network sepolia",
+        "deploy:localhost": "hardhat run scripts/deploy-and-update.ts --network localhost",
+        "genabi": "hardhat run scripts/genabi.ts --network sepolia",
+        "genabi:localhost": "hardhat run scripts/genabi.ts --network localhost"
     },
     "devDependencies": {
         "@fhevm/hardhat-plugin": "^0.0.1-4",

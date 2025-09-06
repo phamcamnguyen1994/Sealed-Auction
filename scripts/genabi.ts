@@ -32,7 +32,14 @@ async function main() {
   const payload = { name: "SealedAuction", address, chainId, abi };
   fs.writeFileSync(outFile, JSON.stringify(payload, null, 2));
 
+  // Auto-copy to frontend
+  const frontendFile = path.join(process.cwd(), "packages", "site", "contracts", "SealedAuction.json");
+  const frontendDir = path.dirname(frontendFile);
+  if (!fs.existsSync(frontendDir)) fs.mkdirSync(frontendDir, { recursive: true });
+  fs.writeFileSync(frontendFile, JSON.stringify(payload, null, 2));
+
   console.log(`ABI exported to: ${outFile}`);
+  console.log(`ABI copied to frontend: ${frontendFile}`);
   console.log(`Address: ${address}`);
   console.log(`ChainId: ${chainId}`);
 }
