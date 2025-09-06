@@ -146,7 +146,7 @@ export const SealedAuctionFHE = () => {
     if (sealedAuction.contractAddress && ethersReadonlyProvider) {
        const contract = new ethers.Contract(
          sealedAuction.contractAddress,
-         sealedAuction.contractAddress ? (await import('../contracts/SealedAuction.json')).default.abi : [],
+         sealedAuction.contractAddress ? require('../contracts/SealedAuction.json').abi : [],
          ethersReadonlyProvider
        );
       
