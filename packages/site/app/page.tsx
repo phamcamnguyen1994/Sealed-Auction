@@ -1,5 +1,3 @@
-import { FHECounterDemo } from "@/components/FHECounterDemo";
-import SealedAuctionUI from "@/components/SealedAuctionUI";
 import { SealedAuctionFHE } from "@/components/SealedAuctionFHE";
 
 export default function Home() {

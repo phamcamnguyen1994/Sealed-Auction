@@ -33,7 +33,6 @@ export const SealedAuctionFHE = () => {
   const {
     provider,
     chainId,
-    accounts,
     isConnected,
     connect,
     ethersSigner,
@@ -49,8 +48,6 @@ export const SealedAuctionFHE = () => {
 
   const {
     instance: fhevmInstance,
-    status: fhevmStatus,
-    error: fhevmError,
   } = useFhevm({
     provider,
     chainId,
@@ -147,11 +144,11 @@ export const SealedAuctionFHE = () => {
   // Try to get seller from contract
   useEffect(() => {
     if (sealedAuction.contractAddress && ethersReadonlyProvider) {
-      const contract = new ethers.Contract(
-        sealedAuction.contractAddress,
-        sealedAuction.contractAddress ? require('../contracts/SealedAuction.json').abi : [],
-        ethersReadonlyProvider
-      );
+       const contract = new ethers.Contract(
+         sealedAuction.contractAddress,
+         sealedAuction.contractAddress ? (await import('../contracts/SealedAuction.json')).default.abi : [],
+         ethersReadonlyProvider
+       );
       
       contract.seller()
         .then((seller: string) => {
@@ -180,7 +177,6 @@ export const SealedAuctionFHE = () => {
     });
   };
 
-  const titleClass = "font-semibold text-black text-lg mt-4";
 
   if (!isConnected) {
     return (
@@ -244,7 +240,7 @@ export const SealedAuctionFHE = () => {
       <div className="col-span-full mx-20 px-6 py-6 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
         <div className="text-center mb-6">
           <h2 className="text-2xl font-bold text-gray-800 mb-2">🏺 Auction Item</h2>
-          <p className="text-gray-600">What's being auctioned today</p>
+          <p className="text-gray-600">What&apos;s being auctioned today</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -617,5 +613,5 @@ export const SealedAuctionFHE = () => {
       </div>
       )}
     </div>
-    );
-  };
+  );
+};

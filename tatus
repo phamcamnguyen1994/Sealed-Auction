@@ -1,0 +1,3 @@
+[33m6408be5[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m Disable ESLint completely for Vercel deployment
+[33m60406a9[m Fix ESLint errors for Vercel deployment
+[33mb2ed4db[m[33m ([m[1;33mtag: [m[1;33mbackup-2025-09-06[m[33m)[m docs: Add comprehensive documentation
