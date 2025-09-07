@@ -266,7 +266,7 @@ export const SealedAuctionFHE = () => {
   // Theme-aware styling functions
   const getCardBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-slate-800/90 backdrop-blur-sm';
+      case 'dark': return 'bg-gray-900/95 backdrop-blur-sm border border-gray-800';
       case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
       default: return 'bg-white/95 backdrop-blur-sm';
     }
@@ -274,7 +274,7 @@ export const SealedAuctionFHE = () => {
   
   const getCardBorder = () => {
     switch (theme) {
-      case 'dark': return 'border-slate-600';
+      case 'dark': return 'border-gray-700';
       case 'orange': return 'border-orange-200';
       default: return 'border-gray-200';
     }
@@ -282,7 +282,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextPrimary = () => {
     switch (theme) {
-      case 'dark': return 'text-white';
+      case 'dark': return 'text-gray-100';
       case 'orange': return 'text-orange-900';
       default: return 'text-gray-900';
     }
@@ -290,7 +290,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextSecondary = () => {
     switch (theme) {
-      case 'dark': return 'text-slate-200';
+      case 'dark': return 'text-gray-300';
       case 'orange': return 'text-orange-700';
       default: return 'text-gray-600';
     }
@@ -298,7 +298,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextMuted = () => {
     switch (theme) {
-      case 'dark': return 'text-slate-300';
+      case 'dark': return 'text-gray-400';
       case 'orange': return 'text-orange-600';
       default: return 'text-gray-500';
     }
@@ -306,7 +306,7 @@ export const SealedAuctionFHE = () => {
   
   const getInputBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-slate-700 border-slate-500 text-white placeholder-slate-300';
+      case 'dark': return 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400';
       case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
       default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
     }
@@ -314,26 +314,30 @@ export const SealedAuctionFHE = () => {
 
   return (
     <div className={`grid w-full gap-4 transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-slate-900' : 
+      theme === 'dark' ? 'bg-gray-950' : 
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
       'bg-gray-50'
     }`}>
       <div className={`col-span-full mx-20 bg-gradient-to-r ${
-        theme === 'dark' ? 'from-violet-600 to-purple-700' : 
+        theme === 'dark' ? 'from-gray-800 to-gray-900' : 
         theme === 'orange' ? 'from-orange-500 to-amber-600' : 
         'from-purple-600 to-blue-600'
-      } text-white rounded-xl shadow-lg`}>
+      } text-white rounded-xl shadow-lg border border-gray-700`}>
         <div className="px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">🔐 Sealed Auction</h1>
-              <p className={`text-xl ${theme === 'dark' ? 'text-blue-100' : 'text-blue-50'}`}>Confidential Bidding with FHEVM</p>
+              <p className={`text-xl ${
+                theme === 'dark' ? 'text-gray-200' : 
+                theme === 'orange' ? 'text-orange-100' :
+                'text-blue-50'
+              }`}>Confidential Bidding with FHEVM</p>
       </div>
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleTheme}
                 className={`${
-                  theme === 'dark' ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30' : 
+                  theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
                   theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
                   'bg-gray-800 text-white border border-gray-600'
                 } px-4 py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg`}
@@ -363,7 +367,7 @@ export const SealedAuctionFHE = () => {
       </div>
       {/* Simplified Info Section */}
       <div className={`col-span-full mx-20 mt-4 px-5 pb-4 rounded-lg border-2 ${
-        theme === 'dark' ? 'bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-slate-600' : 
+        theme === 'dark' ? 'bg-gradient-to-r from-gray-900/80 to-gray-800/80 border-gray-700' : 
         theme === 'orange' ? 'bg-gradient-to-r from-orange-100/80 to-amber-50/80 border-orange-300' :
         'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
       }`}>
@@ -467,7 +471,7 @@ export const SealedAuctionFHE = () => {
                 <div className="grid grid-cols-3 gap-4">
                   {/* Status */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'dark' ? 'border-gray-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-md transition-shadow`}>
@@ -486,7 +490,7 @@ export const SealedAuctionFHE = () => {
 
                   {/* Time Left */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'dark' ? 'border-gray-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-md transition-shadow`}>
@@ -503,7 +507,7 @@ export const SealedAuctionFHE = () => {
 
                   {/* Total Bids */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'dark' ? 'border-gray-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-md transition-shadow`}>
@@ -690,12 +694,16 @@ export const SealedAuctionFHE = () => {
         {/* Message Bar */}
       {sealedAuction.message && (
         <div className="col-span-full mx-20">
-          <div className="bg-gray-900 text-white rounded-lg p-4 shadow-lg">
+          <div className={`${
+            theme === 'dark' ? 'bg-gray-900' : 
+            theme === 'orange' ? 'bg-orange-100' :
+            'bg-gray-100'
+          } ${getTextPrimary()} rounded-lg p-4 shadow-lg border ${getCardBorder()}`}>
             <div className="flex items-center">
               <div className="text-2xl mr-3">💬</div>
               <div>
-                <h4 className="font-semibold text-sm text-gray-300 uppercase tracking-wide">Status Message</h4>
-                <p className="text-white font-mono text-sm break-all">{sealedAuction.message}</p>
+                <h4 className={`font-semibold text-sm ${getTextMuted()} uppercase tracking-wide`}>Status Message</h4>
+                <p className={`${getTextPrimary()} font-mono text-sm break-all`}>{sealedAuction.message}</p>
               </div>
             </div>
           </div>

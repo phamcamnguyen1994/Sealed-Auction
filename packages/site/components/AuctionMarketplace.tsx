@@ -346,7 +346,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           <p className="text-gray-600 mb-8">Connect your wallet to start creating and participating in sealed auctions</p>
           <button
             onClick={connect}
-            className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-8 py-4 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all"
+            className={`${
+              theme === 'dark' ? 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-100 hover:from-gray-600 hover:to-gray-700' :
+              theme === 'orange' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700' :
+              'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
+            } px-8 py-4 rounded-lg font-semibold transition-all`}
           >
             Connect to MetaMask
           </button>
@@ -358,7 +362,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   // Theme-aware styling functions
   const getCardBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-slate-800/90 backdrop-blur-sm';
+      case 'dark': return 'bg-gray-900/95 backdrop-blur-sm border border-gray-800';
       case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
       default: return 'bg-white/95 backdrop-blur-sm';
     }
@@ -366,7 +370,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getCardBorder = () => {
     switch (theme) {
-      case 'dark': return 'border-slate-600';
+      case 'dark': return 'border-gray-700';
       case 'orange': return 'border-orange-200';
       default: return 'border-gray-200';
     }
@@ -374,7 +378,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextPrimary = () => {
     switch (theme) {
-      case 'dark': return 'text-white';
+      case 'dark': return 'text-gray-100';
       case 'orange': return 'text-orange-900';
       default: return 'text-gray-900';
     }
@@ -382,7 +386,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextSecondary = () => {
     switch (theme) {
-      case 'dark': return 'text-slate-200';
+      case 'dark': return 'text-gray-300';
       case 'orange': return 'text-orange-700';
       default: return 'text-gray-600';
     }
@@ -390,7 +394,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextMuted = () => {
     switch (theme) {
-      case 'dark': return 'text-slate-300';
+      case 'dark': return 'text-gray-400';
       case 'orange': return 'text-orange-600';
       default: return 'text-gray-500';
     }
@@ -398,7 +402,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getInputBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-slate-700 border-slate-500 text-white placeholder-slate-300';
+      case 'dark': return 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400';
       case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
       default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
     }
@@ -406,7 +410,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
   return (
     <div className={`max-w-7xl mx-auto p-6 transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-slate-900' : 
+      theme === 'dark' ? 'bg-gray-950' : 
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
       'bg-gray-50'
     }`}>
@@ -417,7 +421,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           <button
             onClick={toggleTheme}
             className={`${
-              theme === 'dark' ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30' : 
+              theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
               theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
               'bg-gray-800 text-white border border-gray-600'
             } px-4 py-2 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg`}
@@ -529,7 +533,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
             <button
               onClick={createNewAuction}
               disabled={isCreatingAuction || !newAuctionName.trim()}
-              className="mt-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+              className={`mt-4 ${
+                theme === 'dark' ? 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-100 hover:from-gray-600 hover:to-gray-700' :
+                theme === 'orange' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700' :
+                'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
+              } px-6 py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2`}
             >
               {isCreatingAuction ? (
                 <>
@@ -553,7 +561,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>All Auctions</h2>
           <button
             onClick={loadAuctionsFromRegistry}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className={`${
+              theme === 'dark' ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' :
+              theme === 'orange' ? 'bg-orange-500 text-white hover:bg-orange-600' :
+              'bg-blue-600 text-white hover:bg-blue-700'
+            } px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2`}
           >
             <span>🔄</span>
             <span>Refresh</span>
@@ -723,7 +735,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                             alert('Invalid auction contract address');
                           }
                         }}
-                        className="w-full bg-purple-600 text-white py-2 px-4 rounded-lg text-sm font-medium hover:bg-purple-700 transition-colors"
+                        className={`w-full ${
+                          theme === 'dark' ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' :
+                          theme === 'orange' ? 'bg-orange-500 text-white hover:bg-orange-600' :
+                          'bg-purple-600 text-white hover:bg-purple-700'
+                        } py-2 px-4 rounded-lg text-sm font-medium transition-colors`}
                       >
                         Open Auction
                       </button>
