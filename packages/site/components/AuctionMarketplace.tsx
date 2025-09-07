@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useMetaMaskEthersSigner } from "../hooks/metamask/useMetaMaskEthersSigner";
+import { useTheme } from "../contexts/ThemeContext";
 
 interface AuctionInfo {
   id: string;
@@ -22,6 +23,7 @@ interface AuctionMarketplaceProps {
 }
 
 export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
+  const { theme, toggleTheme } = useTheme();
   const [auctions, setAuctions] = useState<AuctionInfo[]>([]);
   const [selectedAuction, setSelectedAuction] = useState<string | null>(null);
   const [isCreatingAuction, setIsCreatingAuction] = useState(false);
@@ -353,24 +355,95 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
     );
   }
 
+  // Theme-aware styling functions
+  const getCardBg = () => {
+    switch (theme) {
+      case 'dark': return 'bg-slate-800/90 backdrop-blur-sm';
+      case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
+      default: return 'bg-white/95 backdrop-blur-sm';
+    }
+  };
+  
+  const getCardBorder = () => {
+    switch (theme) {
+      case 'dark': return 'border-slate-600';
+      case 'orange': return 'border-orange-200';
+      default: return 'border-gray-200';
+    }
+  };
+  
+  const getTextPrimary = () => {
+    switch (theme) {
+      case 'dark': return 'text-white';
+      case 'orange': return 'text-orange-900';
+      default: return 'text-gray-900';
+    }
+  };
+  
+  const getTextSecondary = () => {
+    switch (theme) {
+      case 'dark': return 'text-slate-200';
+      case 'orange': return 'text-orange-700';
+      default: return 'text-gray-600';
+    }
+  };
+  
+  const getTextMuted = () => {
+    switch (theme) {
+      case 'dark': return 'text-slate-300';
+      case 'orange': return 'text-orange-600';
+      default: return 'text-gray-500';
+    }
+  };
+  
+  const getInputBg = () => {
+    switch (theme) {
+      case 'dark': return 'bg-slate-700 border-slate-500 text-white placeholder-slate-300';
+      case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
+      default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
+    }
+  };
+
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className={`max-w-7xl mx-auto p-6 transition-colors duration-300 ${
+      theme === 'dark' ? 'bg-slate-900' : 
+      theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
+      'bg-gray-50'
+    }`}>
       {/* Header */}
       <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">🔐 Auction Marketplace</h1>
-        <p className="text-xl text-gray-600">Create and participate in confidential sealed auctions</p>
+        <div className="flex items-center justify-center space-x-4 mb-4">
+          <h1 className={`text-4xl font-bold mb-2 ${getTextPrimary()}`}>🔐 Auction Marketplace</h1>
+          <button
+            onClick={toggleTheme}
+            className={`${
+              theme === 'dark' ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30' : 
+              theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
+              'bg-gray-800 text-white border border-gray-600'
+            } px-4 py-2 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg`}
+            title={`Current: ${theme.charAt(0).toUpperCase() + theme.slice(1)} - Click to cycle themes`}
+          >
+            <span>{
+              theme === 'dark' ? '🌙' : 
+              theme === 'orange' ? '🧡' : 
+              '☀️'
+            }</span>
+            <span className="hidden md:inline">{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+          </button>
+        </div>
+        <p className={`text-xl ${getTextSecondary()}`}>Create and participate in confidential sealed auctions</p>
       </div>
 
       {/* Create New Auction Section - Collapsible */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
+      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} mb-8`}>
         <div 
           className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
         >
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold text-gray-900">Create New Auction</h2>
+            <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>Create New Auction</h2>
             <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-500">
+              <span className={`text-sm ${getTextMuted()}`}>
                 {isCreateFormOpen ? 'Click to collapse' : 'Click to expand'}
               </span>
               <div className={`transform transition-transform duration-200 ${isCreateFormOpen ? 'rotate-180' : ''}`}>
@@ -475,9 +548,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       </div>
 
       {/* Auctions List */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6">
+      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} p-6`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">All Auctions</h2>
+          <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>All Auctions</h2>
           <button
             onClick={loadAuctionsFromRegistry}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center space-x-2"
@@ -498,10 +571,10 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                   placeholder="Search auctions by name or description..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${getInputBg()}`}
                 />
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <span className="text-gray-400">🔍</span>
+                  <span className={theme === 'dark' ? 'text-slate-400' : 'text-gray-400'}>🔍</span>
                 </div>
               </div>
             </div>
@@ -511,7 +584,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${getInputBg()}`}
               >
                 <option value="all">All Status</option>
                 <option value="active">🟢 Active</option>
@@ -522,7 +595,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           </div>
           
           {/* Results Count */}
-          <div className="text-sm text-gray-500">
+          <div className={`text-sm ${getTextMuted()}`}>
             Showing {filteredAuctions.length} of {auctions.length} auctions
             {searchTerm && ` matching "${searchTerm}"`}
             {statusFilter !== 'all' && ` with status "${statusFilter}"`}
@@ -532,8 +605,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         {auctions.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🏺</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No auctions yet</h3>
-            <p className="text-gray-500">Create your first auction to get started!</p>
+            <h3 className={`text-xl font-semibold mb-2 ${getTextSecondary()}`}>No auctions yet</h3>
+            <p className={getTextMuted()}>Create your first auction to get started!</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -573,7 +646,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                         }
                       }
                       return (
-                        <div className="text-center text-gray-400">
+                        <div className={`text-center ${getTextMuted()}`}>
                           <div className="text-4xl mb-2">🖼️</div>
                           <div className="text-sm">No Image</div>
                         </div>
@@ -594,10 +667,10 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                     </div>
                     
                     {auction.description && (
-                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{auction.description}</p>
+                      <p className={`text-sm mb-3 line-clamp-2 ${getTextSecondary()}`}>{auction.description}</p>
                     )}
                     
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3">
+                    <div className={`grid grid-cols-2 gap-2 text-xs mb-3 ${getTextMuted()}`}>
                       <div className="flex items-center space-x-1">
                         <span>📅</span>
                         <span>{formatDate(auction.createdAt)}</span>

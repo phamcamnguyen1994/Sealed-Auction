@@ -8,6 +8,7 @@ import { useMetaMaskEthersSigner } from "../hooks/metamask/useMetaMaskEthersSign
 import { useSealedAuctionFHE } from "@/hooks/useSealedAuctionFHE";
 import { errorNotDeployed } from "./ErrorNotDeployed";
 import { AuctionMarketplace } from "./AuctionMarketplace";
+import { useTheme } from "../contexts/ThemeContext";
 
 /*
  * Main SealedAuction React component with FHE operations
@@ -17,6 +18,7 @@ import { AuctionMarketplace } from "./AuctionMarketplace";
  */
 export const SealedAuctionFHE = () => {
   const { storage: fhevmDecryptionSignatureStorage } = useInMemoryStorage();
+  const { theme, toggleTheme } = useTheme();
   const [bidAmount, setBidAmount] = useState<number>(70);
   const [showMarketplace, setShowMarketplace] = useState<boolean>(false);
   const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(null);
@@ -261,16 +263,89 @@ export const SealedAuctionFHE = () => {
     return <AuctionMarketplace onClose={() => setShowMarketplace(false)} />;
   }
 
+  // Theme-aware styling functions
+  const getCardBg = () => {
+    switch (theme) {
+      case 'dark': return 'bg-slate-800/90 backdrop-blur-sm';
+      case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
+      default: return 'bg-white/95 backdrop-blur-sm';
+    }
+  };
+  
+  const getCardBorder = () => {
+    switch (theme) {
+      case 'dark': return 'border-slate-600';
+      case 'orange': return 'border-orange-200';
+      default: return 'border-gray-200';
+    }
+  };
+  
+  const getTextPrimary = () => {
+    switch (theme) {
+      case 'dark': return 'text-white';
+      case 'orange': return 'text-orange-900';
+      default: return 'text-gray-900';
+    }
+  };
+  
+  const getTextSecondary = () => {
+    switch (theme) {
+      case 'dark': return 'text-slate-200';
+      case 'orange': return 'text-orange-700';
+      default: return 'text-gray-600';
+    }
+  };
+  
+  const getTextMuted = () => {
+    switch (theme) {
+      case 'dark': return 'text-slate-300';
+      case 'orange': return 'text-orange-600';
+      default: return 'text-gray-500';
+    }
+  };
+  
+  const getInputBg = () => {
+    switch (theme) {
+      case 'dark': return 'bg-slate-700 border-slate-500 text-white placeholder-slate-300';
+      case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
+      default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
+    }
+  };
+
   return (
-    <div className="grid w-full gap-4">
-      <div className="col-span-full mx-20 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-lg">
+    <div className={`grid w-full gap-4 transition-colors duration-300 ${
+      theme === 'dark' ? 'bg-slate-900' : 
+      theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
+      'bg-gray-50'
+    }`}>
+      <div className={`col-span-full mx-20 bg-gradient-to-r ${
+        theme === 'dark' ? 'from-violet-600 to-purple-700' : 
+        theme === 'orange' ? 'from-orange-500 to-amber-600' : 
+        'from-purple-600 to-blue-600'
+      } text-white rounded-xl shadow-lg`}>
         <div className="px-8 py-6">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-4xl font-bold mb-2">🔐 Sealed Auction</h1>
-              <p className="text-xl text-blue-100">Confidential Bidding with FHEVM</p>
+              <p className={`text-xl ${theme === 'dark' ? 'text-blue-100' : 'text-blue-50'}`}>Confidential Bidding with FHEVM</p>
       </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={toggleTheme}
+                className={`${
+                  theme === 'dark' ? 'bg-white/20 backdrop-blur-sm text-white border border-white/30' : 
+                  theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
+                  'bg-gray-800 text-white border border-gray-600'
+                } px-4 py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg`}
+                title={`Current: ${theme.charAt(0).toUpperCase() + theme.slice(1)} - Click to cycle themes`}
+              >
+                <span>{
+                  theme === 'dark' ? '🌙' : 
+                  theme === 'orange' ? '🧡' : 
+                  '☀️'
+                }</span>
+                <span className="hidden md:inline">{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+              </button>
               <button
                 onClick={() => setShowMarketplace(!showMarketplace)}
                 className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
@@ -287,21 +362,25 @@ export const SealedAuctionFHE = () => {
         </div>
       </div>
       {/* Simplified Info Section */}
-      <div className="col-span-full mx-20 mt-4 px-5 pb-4 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 border-2 border-blue-200">
+      <div className={`col-span-full mx-20 mt-4 px-5 pb-4 rounded-lg border-2 ${
+        theme === 'dark' ? 'bg-gradient-to-r from-slate-800/50 to-slate-700/50 border-slate-600' : 
+        theme === 'orange' ? 'bg-gradient-to-r from-orange-100/80 to-amber-50/80 border-orange-300' :
+        'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
+      }`}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
-            <h3 className="font-semibold text-lg text-gray-700">🌐 Network</h3>
-            <p className="text-sm text-gray-600">
+            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>🌐 Network</h3>
+            <p className={`text-sm ${getTextSecondary()}`}>
               {chainId === 11155111 ? "Sepolia Testnet" : "Wrong Network"}
             </p>
-            <p className="text-xs text-gray-500 font-mono">{chainId}</p>
+            <p className={`text-xs font-mono ${getTextMuted()}`}>{chainId}</p>
             {chainId !== 11155111 && (
               <p className="text-xs text-red-500">⚠️ Switch to Sepolia</p>
             )}
           </div>
           <div className="text-center">
-            <h3 className="font-semibold text-lg text-gray-700">👤 Account</h3>
-            <p className="text-sm text-gray-600 truncate">
+            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>👤 Account</h3>
+            <p className={`text-sm truncate ${getTextSecondary()}`}>
               {ethersSigner ? `${ethersSigner.address.slice(0, 6)}...${ethersSigner.address.slice(-4)}` : "Not connected"}
             </p>
             {ethersSigner && (
@@ -320,8 +399,8 @@ export const SealedAuctionFHE = () => {
             )}
           </div>
           <div className="text-center">
-            <h3 className="font-semibold text-lg text-gray-700">🔗 Contract</h3>
-            <p className="text-sm text-gray-600 truncate">
+            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>🔗 Contract</h3>
+            <p className={`text-sm truncate ${getTextSecondary()}`}>
               {sealedAuction.contractAddress ? `${sealedAuction.contractAddress.slice(0, 6)}...${sealedAuction.contractAddress.slice(-4)}` : "Not deployed"}
             </p>
             <p className="text-xs text-green-600 font-semibold">✅ Deployed</p>
@@ -349,8 +428,8 @@ export const SealedAuctionFHE = () => {
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
                     <div className="text-6xl mb-4">🏺</div>
-                    <p className="text-gray-500 font-semibold">No Image</p>
-                    <p className="text-sm text-gray-400">No image available</p>
+                    <p className={`font-semibold ${getTextMuted()}`}>No Image</p>
+                    <p className={`text-sm ${getTextMuted()}`}>No image available</p>
                   </div>
                 </div>
               )}
@@ -360,7 +439,7 @@ export const SealedAuctionFHE = () => {
           {/* Auction Details */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-2xl font-bold text-gray-800 mb-2">{auctionItem.name}</h3>
+              <h3 className={`text-2xl font-bold mb-2 ${getTextPrimary()}`}>{auctionItem.name}</h3>
               <div className="flex items-center gap-2 mb-2">
                 <span className="inline-block px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm font-semibold">
                   {auctionItem.category}
@@ -371,27 +450,31 @@ export const SealedAuctionFHE = () => {
                   </span>
         )}
       </div>
-              <div className="text-sm text-gray-600">
+              <div className={`text-sm ${getTextSecondary()}`}>
                 <span className="font-medium">Seller:</span> {auctionItem.seller.slice(0, 6)}...{auctionItem.seller.slice(-4)}
               </div>
             </div>
             
             <div>
-              <h4 className="font-semibold text-gray-700 mb-2">Description</h4>
-              <p className="text-gray-600 leading-relaxed">{auctionItem.description}</p>
+              <h4 className={`font-semibold mb-2 ${getTextPrimary()}`}>Description</h4>
+              <p className={`leading-relaxed ${getTextSecondary()}`}>{auctionItem.description}</p>
             </div>
 
             {/* Auction Status */}
             {sealedAuction.state && (
               <div className="mb-6">
-                <h4 className="font-semibold text-gray-800 mb-4 text-lg">📊 Auction Status</h4>
+                <h4 className={`font-semibold mb-4 text-lg ${getTextPrimary()}`}>📊 Auction Status</h4>
                 <div className="grid grid-cols-3 gap-4">
                   {/* Status */}
-                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
+                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'orange' ? 'border-orange-300' :
+                    'border-blue-200'
+                  } shadow-sm hover:shadow-md transition-shadow`}>
                     <div className="text-2xl mb-2">
                       {sealedAuction.state.isBidding ? '🟢' : sealedAuction.state.isEnded ? '🔴' : '🟠'}
                     </div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Status</div>
+                    <div className={`text-xs ${getTextMuted()} font-medium uppercase tracking-wide`}>Status</div>
                     <div className={`text-sm font-bold mt-1 ${
                       sealedAuction.state.isBidding ? 'text-green-600' : 
                       sealedAuction.state.isEnded ? 'text-red-600' : 'text-orange-600'
@@ -402,9 +485,13 @@ export const SealedAuctionFHE = () => {
                   </div>
 
                   {/* Time Left */}
-                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
+                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'orange' ? 'border-orange-300' :
+                    'border-blue-200'
+                  } shadow-sm hover:shadow-md transition-shadow`}>
                     <div className="text-2xl mb-2">⏰</div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Time Left</div>
+                    <div className={`text-xs ${getTextMuted()} font-medium uppercase tracking-wide`}>Time Left</div>
                     <div className={`text-sm font-bold mt-1 ${
                       sealedAuction.state.isBidding ? 'text-green-600' : 'text-red-600'
                     }`}>
@@ -415,9 +502,13 @@ export const SealedAuctionFHE = () => {
                   </div>
 
                   {/* Total Bids */}
-                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                  <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
+                    theme === 'dark' ? 'border-blue-400' : 
+                    theme === 'orange' ? 'border-orange-300' :
+                    'border-blue-200'
+                  } shadow-sm hover:shadow-md transition-shadow`}>
                     <div className="text-2xl mb-2">📊</div>
-                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Bids</div>
+                    <div className={`text-xs ${getTextMuted()} font-medium uppercase tracking-wide`}>Bids</div>
                     <div className="text-sm font-bold mt-1 text-blue-600">{sealedAuction.state._bids}</div>
                   </div>
                 </div>
@@ -429,14 +520,14 @@ export const SealedAuctionFHE = () => {
             <div className="mt-6 space-y-4">
               {/* Bid Amount Input */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className={`block text-sm font-medium mb-2 ${getTextSecondary()}`}>
                   Bid Amount (ETH)
                 </label>
                 <input
                   type="number"
                   value={bidAmount}
                   onChange={(e) => setBidAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${getInputBg()}`}
                   placeholder="Enter bid amount"
                   min="0"
                   step="0.001"
@@ -446,7 +537,7 @@ export const SealedAuctionFHE = () => {
               {/* Action Buttons */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {/* Refresh Button */}
-                <button
+        <button
                   className={`py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
                     sealedAuction.canRefresh
                       ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5'
@@ -578,8 +669,8 @@ export const SealedAuctionFHE = () => {
             <div className="bg-yellow-50 border-2 border-yellow-200 rounded-xl p-6">
               <div className="text-center">
                 <div className="text-3xl mb-3">🔐</div>
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">View Permission Required</h3>
-                <p className="text-sm text-gray-600 mb-4">
+                <h3 className={`text-lg font-semibold mb-2 ${getTextPrimary()}`}>View Permission Required</h3>
+                <p className={`text-sm mb-4 ${getTextSecondary()}`}>
                   Auction is finalized but you need permission to view results. Only the seller can grant this permission.
                 </p>
                 <div className="text-xs text-gray-500 mb-4">

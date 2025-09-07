@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
+import { ThemeProvider } from "../contexts/ThemeContext";
 import Image from "next/image";
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ export default async function RootLayout({
               height={120}
             />
           </nav>
-          <Providers>{children}</Providers>
+          <ThemeProvider>
+            <Providers>{children}</Providers>
+          </ThemeProvider>
         </main>
       </body>
     </html>
