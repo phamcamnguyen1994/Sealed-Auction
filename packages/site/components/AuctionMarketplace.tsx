@@ -185,26 +185,30 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       // Import contract ABI and bytecode from contracts folder
       const contractData = await import('../contracts/SealedAuction.json');
       console.log("Contract data loaded:", {
-        hasAbi: !!contractData.default.abi,
-        hasBytecode: !!contractData.default.bytecode,
-        abiLength: contractData.default.abi?.length,
-        bytecodeLength: contractData.default.bytecode?.length
+        hasAbi: !!(contractData.default?.abi || contractData.abi),
+        hasBytecode: !!(contractData.default?.bytecode || contractData.bytecode),
+        abiLength: (contractData.default?.abi || contractData.abi)?.length,
+        bytecodeLength: (contractData.default?.bytecode || contractData.bytecode)?.length,
+        format: contractData.default ? 'old' : 'new'
       });
       
-      // Validate contract data
-      if (!contractData.default.abi || !contractData.default.bytecode) {
+      // Validate contract data - check both old and new format
+      const abi = contractData.default?.abi || contractData.abi;
+      const bytecode = contractData.default?.bytecode || contractData.bytecode;
+      
+      if (!abi || !bytecode) {
         throw new Error("Invalid contract data: missing ABI or bytecode");
       }
       
-      if (!contractData.default.bytecode.startsWith('0x')) {
+      if (!bytecode.startsWith('0x')) {
         throw new Error("Invalid bytecode: must start with 0x");
       }
       
       let contractFactory;
       try {
         contractFactory = new ethers.ContractFactory(
-          contractData.default.abi,
-          contractData.default.bytecode,
+          abi,
+          bytecode,
           ethersSigner
         );
         console.log("Contract factory created successfully:", !!contractFactory);

@@ -69,6 +69,9 @@ contract SealedAuction is SepoliaConfig {
         FHE.allowThis(highestBidEnc);
         FHE.allowThis(winnerEnc);
 
+        // Auto grant view permission to bidder (they can see results after finalize)
+        canViewAfterEnd[msg.sender] = true;
+
         unchecked { bids += 1; }
         emit BidPlaced(msg.sender);
 
