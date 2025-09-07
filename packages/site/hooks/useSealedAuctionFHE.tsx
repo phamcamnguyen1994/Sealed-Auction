@@ -36,10 +36,13 @@ function getSealedAuctionByChainId(
   let activeContractAddress = null;
   if (typeof window !== 'undefined') {
     activeContractAddress = localStorage.getItem('active-contract-address');
+    console.log('[getSealedAuctionByChainId] localStorage active-contract-address:', activeContractAddress);
   }
   
   // Use active contract address if available, otherwise use default
   const contractAddress = activeContractAddress || artifact.address;
+  console.log('[getSealedAuctionByChainId] Final contract address:', contractAddress);
+  console.log('[getSealedAuctionByChainId] Artifact address:', artifact.address);
   
   return {
     address: contractAddress as `0x${string}` | undefined,
