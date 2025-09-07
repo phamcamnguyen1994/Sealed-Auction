@@ -161,11 +161,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
     setIsCreatingAuction(true);
     try {
-      // Import contract ABI and bytecode from artifacts
-      const contractData = await import('../../../artifacts/contracts/SealedAuction.sol/SealedAuction.json');
+      // Import contract ABI and bytecode from contracts folder
+      const contractData = await import('../contracts/SealedAuction.json');
       const contractFactory = new ethers.ContractFactory(
-        contractData.abi,
-        contractData.bytecode,
+        contractData.default.abi,
+        contractData.default.bytecode,
         ethersSigner
       );
 

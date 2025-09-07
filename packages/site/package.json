@@ -15,6 +15,7 @@
     "dev-webpack": "npm run clean && next dev",
     "genabi": "echo 'skip genabi'",
     "ishhrunning": "echo 'skip is-hardhat-node-running'",
+    "prebuild": "mkdir -p contracts && cp ../../artifacts/contracts/SealedAuction.sol/SealedAuction.json contracts/ 2>/dev/null || echo 'Artifacts not found, skipping copy'",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
