@@ -7,6 +7,7 @@ import { useInMemoryStorage } from "../hooks/useInMemoryStorage";
 import { useMetaMaskEthersSigner } from "../hooks/metamask/useMetaMaskEthersSigner";
 import { useSealedAuctionFHE } from "@/hooks/useSealedAuctionFHE";
 import { errorNotDeployed } from "./ErrorNotDeployed";
+import { AuctionMarketplace } from "./AuctionMarketplace";
 
 /*
  * Main SealedAuction React component with FHE operations
@@ -17,6 +18,8 @@ import { errorNotDeployed } from "./ErrorNotDeployed";
 export const SealedAuctionFHE = () => {
   const { storage: fhevmDecryptionSignatureStorage } = useInMemoryStorage();
   const [bidAmount, setBidAmount] = useState<number>(70);
+  const [showMarketplace, setShowMarketplace] = useState<boolean>(false);
+  const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(null);
   const [auctionItem, setAuctionItem] = useState<{
     name: string;
     description: string;
@@ -24,10 +27,10 @@ export const SealedAuctionFHE = () => {
     category: string;
     seller: string;
   }>({
-    name: "Ancient Dragon Scroll",
-    description: "A mysterious scroll containing ancient dragon magic. Believed to be over 1000 years old.",
+    name: "Loading...",
+    description: "Loading auction information...",
     image: null,
-    category: "Antique Artifact",
+    category: "Unknown",
     seller: "0x8d30010878d95C7EeF78e543Ee2133db846633b8" // Default seller address
   });
   const {
@@ -89,48 +92,7 @@ export const SealedAuctionFHE = () => {
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 " +
     "disabled:opacity-50 disabled:pointer-events-none";
 
-  // Preset auction items
-  const presetItems = [
-    {
-      name: "Ancient Dragon Scroll",
-      description: "A mysterious scroll containing ancient dragon magic. Believed to be over 1000 years old.",
-      category: "Antique Artifact",
-      emoji: "🏺"
-    },
-    {
-      name: "Rare Charizard Card",
-      description: "First edition holographic Charizard Pokémon card. Mint condition, extremely rare.",
-      category: "Trading Card",
-      emoji: "🔥"
-    },
-    {
-      name: "Mystical Crystal Orb",
-      description: "A glowing crystal orb said to hold the power of the ancients. Radiates mysterious energy.",
-      category: "Mystical Item",
-      emoji: "🔮"
-    },
-    {
-      name: "Golden Pharaoh Mask",
-      description: "Ancient Egyptian pharaoh's ceremonial mask. Made of pure gold with intricate hieroglyphs.",
-      category: "Historical Artifact",
-      emoji: "👑"
-    }
-  ];
 
-  // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setAuctionItem(prev => ({
-          ...prev,
-          image: e.target?.result as string
-        }));
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   // Get seller address from contract (if available)
   const [contractSeller, setContractSeller] = useState<string | null>(null);
@@ -141,14 +103,121 @@ export const SealedAuctionFHE = () => {
     return ethersSigner?.address?.toLowerCase() === sellerAddress.toLowerCase();
   }, [ethersSigner?.address, contractSeller, auctionItem.seller]);
 
-  // Try to get seller from contract
+  // Listen for auction selection from marketplace
+  useEffect(() => {
+    const handleAuctionSelected = (event: any) => {
+      const { contractAddress, auctionId } = event.detail;
+      console.log('Auction selected:', { contractAddress, auctionId });
+      setCurrentContractAddress(contractAddress);
+      // Force refresh of the sealed auction hook
+      window.location.reload();
+    };
+
+    const handleAuctionDataLoaded = (event: any) => {
+      const auctionData = event.detail;
+      console.log('Auction data loaded:', auctionData);
+      
+      // Update auction item with loaded data
+      setAuctionItem(prev => ({
+        ...prev,
+        name: auctionData.name || prev.name,
+        description: auctionData.description || prev.description,
+        image: auctionData.image || prev.image
+      }));
+    };
+
+    window.addEventListener('auction-selected', handleAuctionSelected);
+    window.addEventListener('auction-data-loaded', handleAuctionDataLoaded);
+    
+    // Load active contract address from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const activeContractAddress = localStorage.getItem('active-contract-address');
+      if (activeContractAddress) {
+        setCurrentContractAddress(activeContractAddress);
+        // Load auction info from Registry
+        loadAuctionInfoFromRegistry(activeContractAddress);
+      } else {
+        // If no active auction, try to load from default contract
+        if (sealedAuction.contractAddress) {
+          loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
+        }
+      }
+    }
+
+    return () => {
+      window.removeEventListener('auction-selected', handleAuctionSelected);
+      window.removeEventListener('auction-data-loaded', handleAuctionDataLoaded);
+    };
+  }, []);
+
+  // Load auction info from Registry and localStorage
+  const loadAuctionInfoFromRegistry = async (contractAddress: string) => {
+    if (!ethersReadonlyProvider) return;
+    
+    try {
+      // First try to load from localStorage (includes image)
+      const localAuctionData = localStorage.getItem(`auction-${contractAddress}`);
+      if (localAuctionData) {
+        const auctionData = JSON.parse(localAuctionData);
+        console.log('Auction data from localStorage:', auctionData);
+        
+        setAuctionItem(prev => ({
+          ...prev,
+          name: auctionData.name || prev.name,
+          description: auctionData.description || prev.description,
+          image: auctionData.image || prev.image,
+          seller: prev.seller // Keep existing seller
+        }));
+        return;
+      }
+      
+      // Fallback to Registry if no localStorage data
+      try {
+        const registryData = await import('../contracts/AuctionRegistry.json');
+        const registryContract = new ethers.Contract(
+          "0x74b7dF65eeb26E977Ce17567A18088030C3363Df",
+          registryData.abi,
+          ethersReadonlyProvider
+        );
+        
+        const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
+        console.log('Auction info from Registry:', auctionInfo);
+        
+        // Update auction item with info from Registry
+        setAuctionItem(prev => ({
+          ...prev,
+          name: auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+          description: auctionInfo.description || "Auction created on the blockchain",
+          seller: auctionInfo.creator || prev.seller
+        }));
+      } catch (registryError) {
+        console.log('Registry not available, using contract address as name');
+        // Final fallback - use contract address as name
+        setAuctionItem(prev => ({
+          ...prev,
+          name: `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+          description: "Auction created on the blockchain",
+          seller: prev.seller
+        }));
+      }
+      
+    } catch (error) {
+      console.error('Failed to load auction info:', error);
+    }
+  };
+
+  // Load auction info when contract address changes
   useEffect(() => {
     if (sealedAuction.contractAddress && ethersReadonlyProvider) {
-       const contract = new ethers.Contract(
-         sealedAuction.contractAddress,
-         sealedAuction.contractAddress ? require('../contracts/SealedAuction.json').abi : [],
-         ethersReadonlyProvider
-       );
+      // Load auction info from Registry/localStorage
+      loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
+      
+      // Try to get seller from contract
+      const contract = new ethers.Contract(
+        sealedAuction.contractAddress,
+        sealedAuction.contractAddress ? require('../contracts/SealedAuction.json').abi : [],
+        ethersReadonlyProvider
+      );
       
       contract.seller()
         .then((seller: string) => {
@@ -166,16 +235,7 @@ export const SealedAuctionFHE = () => {
     }
   }, [sealedAuction.contractAddress, ethersReadonlyProvider]);
 
-  // Handle preset item selection
-  const handlePresetItem = (item: typeof presetItems[0]) => {
-    setAuctionItem({
-      name: item.name,
-      description: item.description,
-      category: item.category,
-      image: null,
-      seller: auctionItem.seller
-    });
-  };
+
 
 
   if (!isConnected) {
@@ -196,6 +256,11 @@ export const SealedAuctionFHE = () => {
     return errorNotDeployed(chainId);
   }
 
+  // Show marketplace if toggled
+  if (showMarketplace) {
+    return <AuctionMarketplace onClose={() => setShowMarketplace(false)} />;
+  }
+
   return (
     <div className="grid w-full gap-4">
       <div className="col-span-full mx-20 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl shadow-lg">
@@ -204,10 +269,19 @@ export const SealedAuctionFHE = () => {
             <div>
               <h1 className="text-4xl font-bold mb-2">🔐 Sealed Auction</h1>
               <p className="text-xl text-blue-100">Confidential Bidding with FHEVM</p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm text-blue-200 mb-1">Powered by</div>
-              <div className="text-lg font-semibold">Zama FHEVM</div>
+      </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowMarketplace(!showMarketplace)}
+                className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors flex items-center space-x-2"
+              >
+                <span>🏪</span>
+                <span>{showMarketplace ? 'Hide' : 'Show'} Marketplace</span>
+              </button>
+              <div className="text-right">
+                <div className="text-sm text-blue-200 mb-1">Powered by</div>
+                <div className="text-lg font-semibold">Zama FHEVM</div>
+              </div>
             </div>
           </div>
         </div>
@@ -217,14 +291,33 @@ export const SealedAuctionFHE = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="text-center">
             <h3 className="font-semibold text-lg text-gray-700">🌐 Network</h3>
-            <p className="text-sm text-gray-600">Sepolia Testnet</p>
+            <p className="text-sm text-gray-600">
+              {chainId === 11155111 ? "Sepolia Testnet" : "Wrong Network"}
+            </p>
             <p className="text-xs text-gray-500 font-mono">{chainId}</p>
+            {chainId !== 11155111 && (
+              <p className="text-xs text-red-500">⚠️ Switch to Sepolia</p>
+            )}
           </div>
           <div className="text-center">
             <h3 className="font-semibold text-lg text-gray-700">👤 Account</h3>
             <p className="text-sm text-gray-600 truncate">
               {ethersSigner ? `${ethersSigner.address.slice(0, 6)}...${ethersSigner.address.slice(-4)}` : "Not connected"}
             </p>
+            {ethersSigner && (
+              <button
+                onClick={() => {
+                  if (typeof window !== 'undefined' && (window as any).ethereum && (window as any).ethereum.disconnect) {
+                    (window as any).ethereum.disconnect();
+                  }
+                  // Force page reload to reset state
+                  window.location.reload();
+                }}
+                className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+              >
+                Disconnect
+              </button>
+            )}
           </div>
           <div className="text-center">
             <h3 className="font-semibold text-lg text-gray-700">🔗 Contract</h3>
@@ -232,19 +325,18 @@ export const SealedAuctionFHE = () => {
               {sealedAuction.contractAddress ? `${sealedAuction.contractAddress.slice(0, 6)}...${sealedAuction.contractAddress.slice(-4)}` : "Not deployed"}
             </p>
             <p className="text-xs text-green-600 font-semibold">✅ Deployed</p>
+            <p className="text-xs text-blue-600 mt-1">
+              🔗 <a href={`https://sepolia.etherscan.io/address/${sealedAuction.contractAddress}`} target="_blank" rel="noopener noreferrer" className="underline">View on Etherscan</a>
+            </p>
           </div>
         </div>
       </div>
 
-      {/* Auction Item Display */}
-      <div className="col-span-full mx-20 px-6 py-6 rounded-xl bg-gradient-to-br from-amber-50 to-orange-50 border-2 border-amber-200 shadow-lg">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">🏺 Auction Item</h2>
-          <p className="text-gray-600">What&apos;s being auctioned today</p>
-        </div>
 
+      {/* Auction Info Display */}
+      <div className="col-span-full mx-20 px-6 py-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Item Image */}
+          {/* Auction Image */}
           <div className="relative">
             <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-gray-300 overflow-hidden">
               {auctionItem.image ? (
@@ -256,77 +348,29 @@ export const SealedAuctionFHE = () => {
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <div className="text-center">
-                    <div className="text-6xl mb-4">
-                      {presetItems.find(item => item.name === auctionItem.name)?.emoji || "🏺"}
-                    </div>
+                    <div className="text-6xl mb-4">🏺</div>
                     <p className="text-gray-500 font-semibold">No Image</p>
-                    <p className="text-sm text-gray-400">Upload an image</p>
+                    <p className="text-sm text-gray-400">No image available</p>
                   </div>
                 </div>
               )}
             </div>
-            
-            {/* Upload Controls - Only for Seller */}
-            {isSeller ? (
-              <div className="mt-4 space-y-2">
-                <label className="cursor-pointer block">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                  <div className="w-full py-2 px-4 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-center font-semibold">
-                    📷 Upload Image
-                  </div>
-                </label>
-                
-                {/* Preset Items */}
-                <div className="text-center">
-                  <p className="text-sm text-gray-600 mb-2">Or choose a preset:</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {presetItems.map((item, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handlePresetItem(item)}
-                        className="p-2 bg-white border border-amber-300 rounded-lg hover:bg-amber-50 transition-colors text-xs"
-                      >
-                        <div className="text-lg mb-1">{item.emoji}</div>
-                        <div className="font-semibold text-gray-700 truncate">{item.name}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="mt-4 text-center">
-                <div className="p-3 bg-gray-100 rounded-lg">
-                  <div className="text-2xl mb-2">🔒</div>
-                  <p className="text-sm text-gray-600">
-                    Only the seller can manage this item
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Seller: {auctionItem.seller.slice(0, 6)}...{auctionItem.seller.slice(-4)}
-                  </p>
-                </div>
-      </div>
-            )}
           </div>
 
-          {/* Item Details */}
+          {/* Auction Details */}
           <div className="space-y-4">
             <div>
-              <h3 className="text-xl font-bold text-gray-800 mb-2">{auctionItem.name}</h3>
+              <h3 className="text-2xl font-bold text-gray-800 mb-2">{auctionItem.name}</h3>
               <div className="flex items-center gap-2 mb-2">
-                <span className="inline-block px-3 py-1 bg-amber-200 text-amber-800 rounded-full text-sm font-semibold">
+                <span className="inline-block px-3 py-1 bg-blue-200 text-blue-800 rounded-full text-sm font-semibold">
                   {auctionItem.category}
                 </span>
                 {isSeller && (
                   <span className="inline-block px-3 py-1 bg-green-200 text-green-800 rounded-full text-sm font-semibold">
                     👑 You are the seller
                   </span>
-                )}
-              </div>
+        )}
+      </div>
               <div className="text-sm text-gray-600">
                 <span className="font-medium">Seller:</span> {auctionItem.seller.slice(0, 6)}...{auctionItem.seller.slice(-4)}
               </div>
@@ -337,79 +381,141 @@ export const SealedAuctionFHE = () => {
               <p className="text-gray-600 leading-relaxed">{auctionItem.description}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 pt-4">
-              <div className="text-center p-3 bg-white rounded-lg border border-amber-200">
-                <div className="text-2xl mb-1">⏰</div>
-                <div className="text-sm text-gray-600">Duration</div>
-                <div className="font-semibold text-gray-800">1 Hour</div>
+            {/* Auction Status */}
+            {sealedAuction.state && (
+              <div className="mb-6">
+                <h4 className="font-semibold text-gray-800 mb-4 text-lg">📊 Auction Status</h4>
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Status */}
+                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="text-2xl mb-2">
+                      {sealedAuction.state.isBidding ? '🟢' : sealedAuction.state.isEnded ? '🔴' : '🟠'}
+                    </div>
+                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Status</div>
+                    <div className={`text-sm font-bold mt-1 ${
+                      sealedAuction.state.isBidding ? 'text-green-600' : 
+                      sealedAuction.state.isEnded ? 'text-red-600' : 'text-orange-600'
+                    }`}>
+                      {sealedAuction.state.isBidding ? 'Active' : 
+                       sealedAuction.state.isEnded ? 'Ended' : 'Expired'}
+                    </div>
+                  </div>
+
+                  {/* Time Left */}
+                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="text-2xl mb-2">⏰</div>
+                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Time Left</div>
+                    <div className={`text-sm font-bold mt-1 ${
+                      sealedAuction.state.isBidding ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {sealedAuction.state.isBidding ? 
+                        `${Math.max(0, Math.floor((Number(sealedAuction.state._endTime) - Date.now()/1000) / 60))} min` : 
+                        sealedAuction.state.isEnded ? "Ended" : "Expired"}
+                    </div>
+                  </div>
+
+                  {/* Total Bids */}
+                  <div className="text-center p-4 bg-white rounded-lg border-2 border-blue-200 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="text-2xl mb-2">📊</div>
+                    <div className="text-xs text-gray-500 font-medium uppercase tracking-wide">Bids</div>
+                    <div className="text-sm font-bold mt-1 text-blue-600">{sealedAuction.state._bids}</div>
+                  </div>
+                </div>
               </div>
-              <div className="text-center p-3 bg-white rounded-lg border border-amber-200">
-                <div className="text-2xl mb-1">🔒</div>
-                <div className="text-sm text-gray-600">Type</div>
-                <div className="font-semibold text-gray-800">Sealed Bid</div>
+            )}
+
+
+            {/* Bidding Controls */}
+            <div className="mt-6 space-y-4">
+              {/* Bid Amount Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Bid Amount (ETH)
+                </label>
+                <input
+                  type="number"
+                  value={bidAmount}
+                  onChange={(e) => setBidAmount(Number(e.target.value))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter bid amount"
+                  min="0"
+                  step="0.001"
+                />
               </div>
+
+              {/* Action Buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Refresh Button */}
+                <button
+                  className={`py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                    sealedAuction.canRefresh
+                      ? 'bg-blue-600 text-white hover:bg-blue-700 hover:shadow-lg transform hover:-translate-y-0.5'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  disabled={!sealedAuction.canRefresh}
+                  onClick={sealedAuction.refreshState}
+                >
+                  🔄 Refresh
+        </button>
+
+                {/* Place Bid Button */}
+        <button
+                  className={`py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                    sealedAuction.canPlaceBid
+                      ? 'bg-green-600 text-white hover:bg-green-700 hover:shadow-lg transform hover:-translate-y-0.5'
+                      : sealedAuction.isPlacingBid
+                        ? 'bg-yellow-500 text-white animate-pulse'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  disabled={!sealedAuction.canPlaceBid}
+                  onClick={() => sealedAuction.placeBid(bidAmount)}
+                >
+                  {sealedAuction.canPlaceBid
+                    ? "💰 Place Bid"
+                    : sealedAuction.isPlacingBid
+                      ? "⏳ Placing..."
+                      : "❌ Cannot bid"}
+        </button>
+
+                {/* Finalize Button */}
+        <button
+                  className={`py-2 px-4 rounded-lg font-semibold transition-all duration-200 ${
+                    sealedAuction.canFinalize
+                      ? 'bg-red-600 text-white hover:bg-red-700 hover:shadow-lg transform hover:-translate-y-0.5'
+                      : sealedAuction.isFinalizing
+                        ? 'bg-yellow-500 text-white animate-pulse'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                  disabled={!sealedAuction.canFinalize}
+                  onClick={sealedAuction.finalize}
+                >
+                  {sealedAuction.canFinalize
+                    ? "🏁 Finalize"
+                    : sealedAuction.isFinalizing
+                      ? "⏳ Finalizing..."
+                      : "❌ Cannot finalize"}
+        </button>
+              </div>
+
+              {/* Get Results Directly Button - Only show when auction ended */}
+              {sealedAuction.state?.isEnded && (
+                <div className="text-center">
+        <button
+                    onClick={sealedAuction.getResultsDirectly}
+                    className="py-2 px-4 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
+                  >
+                    🔍 Get Results Directly
+        </button>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Bypass permission check to get results
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Main Auction Card */}
-      <div className="col-span-full mx-20 px-6 py-6 rounded-xl bg-gradient-to-br from-white to-gray-50 border-2 border-gray-200 shadow-lg">
-        <div className="text-center mb-6">
-          <h2 className="text-3xl font-bold text-gray-800 mb-2">🏆 Sealed Auction</h2>
-          <p className="text-gray-600">Place encrypted bids in this confidential auction</p>
-        </div>
-
-        {/* Auction Status Card */}
-        <div className="bg-white rounded-lg p-6 mb-6 border border-gray-200 shadow-sm">
-          {sealedAuction.state ? (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Status */}
-              <div className="text-center">
-                <div className="text-2xl mb-2">
-                  {sealedAuction.state.isBidding ? '🟢' : sealedAuction.state.isEnded ? '🔴' : '🟡'}
-                </div>
-                <h3 className="font-semibold text-lg text-gray-700">Status</h3>
-                <p className={`text-lg font-bold ${
-                  sealedAuction.state.isBidding ? 'text-green-600' : 
-                  sealedAuction.state.isEnded ? 'text-red-600' : 'text-yellow-600'
-                }`}>
-                  {sealedAuction.state.isBidding ? 'Active' : 
-                   sealedAuction.state.isEnded ? 'Ended' : 'Unknown'}
-                </p>
-              </div>
-
-              {/* Time Left */}
-              <div className="text-center">
-                <div className="text-2xl mb-2">⏰</div>
-                <h3 className="font-semibold text-lg text-gray-700">Time Left</h3>
-                <p className={`text-lg font-bold ${
-                  sealedAuction.state.isBidding ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {sealedAuction.state.isBidding ? 
-                    `${Math.max(0, Math.floor((Number(sealedAuction.state._endTime) - Date.now()/1000) / 60))} min` : 
-                    "Ended"}
-                </p>
-                <p className="text-xs text-gray-500 mt-1">
-                  Ends: {new Date(Number(sealedAuction.state._endTime) * 1000).toLocaleTimeString()}
-                </p>
-              </div>
-
-              {/* Total Bids */}
-              <div className="text-center">
-                <div className="text-2xl mb-2">📊</div>
-                <h3 className="font-semibold text-lg text-gray-700">Total Bids</h3>
-                <p className="text-2xl font-bold text-blue-600">{sealedAuction.state._bids}</p>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-4">⏳</div>
-              <h3 className="text-xl font-semibold text-gray-700 mb-2">Loading Auction Data</h3>
-              <p className="text-gray-600">Click "Refresh State" to load current information</p>
-            </div>
-          )}
-        </div>
 
         {/* Results Section */}
         {(sealedAuction.highestBidHandle || sealedAuction.winnerHandle) && (
@@ -465,115 +571,7 @@ export const SealedAuctionFHE = () => {
             </div>
           </div>
         )}
-      </div>
-      {/* Action Buttons */}
-      <div className="col-span-full mx-20">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {/* Refresh State Button */}
-          <div className="bg-white rounded-xl p-6 border-2 border-blue-200 shadow-lg hover:shadow-xl transition-shadow">
-            <div className="text-center">
-              <div className="text-3xl mb-3">🔄</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Refresh State</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Get the latest auction information from blockchain
-              </p>
-        <button
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-                  sealedAuction.canRefresh
-                    ? 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-                disabled={!sealedAuction.canRefresh}
-                onClick={sealedAuction.refreshState}
-              >
-                {sealedAuction.canRefresh ? "Refresh State" : "Not Available"}
-        </button>
-              
-              {/* Get Results Directly Button - Only show when auction ended */}
-              {sealedAuction.state?.isEnded && (
-                <div className="mt-4">
-        <button
-                    onClick={sealedAuction.getResultsDirectly}
-                    className="w-full py-3 px-4 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
-        >
-                    🔍 Get Results Directly
-        </button>
-                  <p className="text-xs text-gray-500 mt-2">
-                    Bypass permission check to get results
-                  </p>
-                </div>
-              )}
-            </div>
-      </div>
 
-          {/* Place Bid Button */}
-          <div className="bg-white rounded-xl p-6 border-2 border-green-200 shadow-lg hover:shadow-xl transition-shadow">
-            <div className="text-center">
-              <div className="text-3xl mb-3">💰</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Place Bid</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                Place a sealed bid (only during active auction)
-              </p>
-              <div className="space-y-3">
-                <input
-                  type="number"
-                  value={bidAmount}
-                  onChange={(e) => setBidAmount(Number(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-center text-lg font-semibold focus:outline-none focus:ring-2 focus:ring-green-500"
-                  min="1"
-                  placeholder="70"
-                />
-        <button
-                  className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-                    sealedAuction.canPlaceBid
-                      ? 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800'
-                      : sealedAuction.isPlacingBid
-                        ? 'bg-yellow-500 text-white'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  }`}
-                  disabled={!sealedAuction.canPlaceBid}
-                  onClick={() => sealedAuction.placeBid(bidAmount)}
-                >
-                  {sealedAuction.canPlaceBid
-                    ? "💸 Place Bid"
-                    : sealedAuction.isPlacingBid
-                      ? "⏳ Placing..."
-                      : "❌ Cannot bid"}
-        </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Finalize Button */}
-          <div className="bg-white rounded-xl p-6 border-2 border-red-200 shadow-lg hover:shadow-xl transition-shadow">
-            <div className="text-center">
-              <div className="text-3xl mb-3">🏁</div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Finalize Auction</h3>
-              <p className="text-sm text-gray-600 mb-4">
-                End the auction and reveal results (after time expires)
-              </p>
-        <button
-                className={`w-full py-3 px-4 rounded-lg font-semibold transition-all ${
-                  sealedAuction.canFinalize
-                    ? 'bg-red-600 text-white hover:bg-red-700 active:bg-red-800'
-                    : sealedAuction.isFinalizing
-                      ? 'bg-yellow-500 text-white'
-                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-                disabled={!sealedAuction.canFinalize}
-                onClick={sealedAuction.finalize}
-              >
-                {sealedAuction.canFinalize
-                  ? "🏁 Finalize"
-                  : sealedAuction.isFinalizing
-                    ? "⏳ Finalizing..."
-                    : "❌ Cannot finalize"}
-        </button>
-      </div>
-          </div>
-        </div>
-        </div>
-        
         {/* Grant View Permission Section - Only show if auction is finalized but no results */}
         {sealedAuction.state?.isEnded && !sealedAuction.highestBidHandle && !sealedAuction.winnerHandle && (
           <div className="mt-6">

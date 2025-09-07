@@ -32,9 +32,17 @@ type SealedAuctionInfoType = {
 function getSealedAuctionByChainId(
   chainId: number | undefined
 ): SealedAuctionInfoType {
-  // Always return the artifact data, regardless of chainId
+  // Check for active contract address from localStorage (only on client side)
+  let activeContractAddress = null;
+  if (typeof window !== 'undefined') {
+    activeContractAddress = localStorage.getItem('active-contract-address');
+  }
+  
+  // Use active contract address if available, otherwise use default
+  const contractAddress = activeContractAddress || artifact.address;
+  
   return {
-    address: artifact.address as `0x${string}` | undefined,
+    address: contractAddress as `0x${string}` | undefined,
     chainId: artifact.chainId ?? chainId,
     chainName: artifact.chainId === 11155111 ? "sepolia" : artifact.chainId === 31337 ? "hardhat" : "unknown",
     abi: artifact.abi,

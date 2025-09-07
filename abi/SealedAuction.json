@@ -1,6 +1,6 @@
 {
   "name": "SealedAuction",
-  "address": "0x447C3072042853B3B754ad79D86f408684251348",
+  "address": "0xFdFAcaBee54555Fdb6F832D1D7209FECd1fA6d7C",
   "chainId": 11155111,
   "abi": [
     {
@@ -203,6 +203,5 @@
       "stateMutability": "view",
       "type": "function"
     }
-  ],
-  "deployTimestamp": 1757116934
+  ]
 }
