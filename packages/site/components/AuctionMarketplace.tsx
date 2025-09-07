@@ -30,6 +30,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   const [newAuctionDuration, setNewAuctionDuration] = useState(300); // 5 minutes default
   const [newAuctionImage, setNewAuctionImage] = useState<string | null>(null);
   const [registryContract, setRegistryContract] = useState<ethers.Contract | null>(null);
+  const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended' | 'finalized'>('all');
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -309,6 +312,14 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
     return 'active';
   };
 
+  // Filter auctions based on search and status
+  const filteredAuctions = auctions.filter(auction => {
+    const matchesSearch = auction.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         auction.description.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || getAuctionStatus(auction) === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   // Format time remaining
   const getTimeRemaining = (endTime: number) => {
     const now = Date.now();
@@ -326,8 +337,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   };
 
   if (!isConnected) {
-    return (
-      <div className="max-w-4xl mx-auto p-6">
+  return (
+    <div className="max-w-7xl mx-auto p-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900 mb-4">🔐 Auction Marketplace</h1>
           <p className="text-gray-600 mb-8">Connect your wallet to start creating and participating in sealed auctions</p>
@@ -343,102 +354,124 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="text-center mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">🔐 Auction Marketplace</h1>
         <p className="text-xl text-gray-600">Create and participate in confidential sealed auctions</p>
       </div>
 
-      {/* Create New Auction Section */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-6 mb-8">
-        <h2 className="text-2xl font-bold text-gray-900 mb-4">Create New Auction</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Auction Name</label>
-            <input
-              type="text"
-              value={newAuctionName}
-              onChange={(e) => setNewAuctionName(e.target.value)}
-              placeholder="e.g., Rare NFT Collection"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Duration (seconds)</label>
-            <select
-              value={newAuctionDuration}
-              onChange={(e) => setNewAuctionDuration(Number(e.target.value))}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-            >
-              <option value={60}>1 minute (testing)</option>
-              <option value={300}>5 minutes (testing)</option>
-              <option value={1800}>30 minutes</option>
-              <option value={3600}>1 hour</option>
-              <option value={86400}>24 hours</option>
-            </select>
-          </div>
-        </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
-          <textarea
-            value={newAuctionDescription}
-            onChange={(e) => setNewAuctionDescription(e.target.value)}
-            placeholder="Describe what's being auctioned..."
-            rows={3}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-          />
-        </div>
-        <div className="mt-4">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Auction Image (optional)</label>
-          <div className="flex items-center space-x-4">
-            <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              className="hidden"
-              id="auction-image-upload"
-            />
-            <label
-              htmlFor="auction-image-upload"
-              className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium transition-colors"
-            >
-              📷 Upload Image
-            </label>
-            {newAuctionImage && (
-              <div className="flex items-center space-x-2">
-                <img
-                  src={newAuctionImage}
-                  alt="Auction preview"
-                  className="w-16 h-16 object-cover rounded-lg border border-gray-300"
-                />
-                <button
-                  onClick={() => setNewAuctionImage(null)}
-                  className="text-red-500 hover:text-red-700 text-sm"
-                >
-                  ✕ Remove
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-        <button
-          onClick={createNewAuction}
-          disabled={isCreatingAuction || !newAuctionName.trim()}
-          className="mt-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+      {/* Create New Auction Section - Collapsible */}
+      <div className="bg-white rounded-xl shadow-lg border border-gray-200 mb-8">
+        <div 
+          className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+          onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
         >
-          {isCreatingAuction ? (
-            <>
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              <span>Creating...</span>
-            </>
-          ) : (
-            <>
-              <span>➕</span>
-              <span>Create Auction</span>
-            </>
-          )}
-        </button>
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-bold text-gray-900">Create New Auction</h2>
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-gray-500">
+                {isCreateFormOpen ? 'Click to collapse' : 'Click to expand'}
+              </span>
+              <div className={`transform transition-transform duration-200 ${isCreateFormOpen ? 'rotate-180' : ''}`}>
+                ▼
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {isCreateFormOpen && (
+          <div className="px-6 pb-6 border-t border-gray-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Auction Name</label>
+                <input
+                  type="text"
+                  value={newAuctionName}
+                  onChange={(e) => setNewAuctionName(e.target.value)}
+                  placeholder="e.g., Rare NFT Collection"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Duration</label>
+                <select
+                  value={newAuctionDuration}
+                  onChange={(e) => setNewAuctionDuration(Number(e.target.value))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                >
+                  <option value={60}>1 minute (testing)</option>
+                  <option value={300}>5 minutes (testing)</option>
+                  <option value={1800}>30 minutes</option>
+                  <option value={3600}>1 hour</option>
+                  <option value={86400}>1 day</option>
+                  <option value={259200}>3 days</option>
+                  <option value={604800}>1 week</option>
+                </select>
+              </div>
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Description (optional)</label>
+              <textarea
+                value={newAuctionDescription}
+                onChange={(e) => setNewAuctionDescription(e.target.value)}
+                placeholder="Describe what's being auctioned..."
+                rows={3}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              />
+            </div>
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Auction Image (optional)</label>
+              <div className="flex items-center space-x-4">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  id="auction-image-upload"
+                />
+                <label
+                  htmlFor="auction-image-upload"
+                  className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium transition-colors"
+                >
+                  📷 Upload Image
+                </label>
+                {newAuctionImage && (
+                  <div className="flex items-center space-x-2">
+                    <img
+                      src={newAuctionImage}
+                      alt="Auction preview"
+                      className="w-20 h-20 object-cover rounded-lg border border-gray-300 shadow-sm"
+                    />
+                    <button
+                      onClick={() => setNewAuctionImage(null)}
+                      className="text-red-500 hover:text-red-700 text-sm font-medium"
+                    >
+                      ✕ Remove
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              onClick={createNewAuction}
+              disabled={isCreatingAuction || !newAuctionName.trim()}
+              className="mt-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2"
+            >
+              {isCreatingAuction ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <span>➕</span>
+                  <span>Create Auction</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Auctions List */}
@@ -454,6 +487,48 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           </button>
         </div>
         
+        {/* Search and Filter Bar */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            {/* Search Bar */}
+            <div className="flex-1">
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="Search auctions by name or description..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                />
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-400">🔍</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Status Filter */}
+            <div className="md:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as any)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+              >
+                <option value="all">All Status</option>
+                <option value="active">🟢 Active</option>
+                <option value="ended">🟡 Ended</option>
+                <option value="finalized">⚪ Finalized</option>
+              </select>
+            </div>
+          </div>
+          
+          {/* Results Count */}
+          <div className="text-sm text-gray-500">
+            Showing {filteredAuctions.length} of {auctions.length} auctions
+            {searchTerm && ` matching "${searchTerm}"`}
+            {statusFilter !== 'all' && ` with status "${statusFilter}"`}
+          </div>
+        </div>
+        
         {auctions.length === 0 ? (
           <div className="text-center py-12">
             <div className="text-6xl mb-4">🏺</div>
@@ -462,41 +537,84 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {auctions.map((auction) => {
+            {filteredAuctions.map((auction) => {
               const status = getAuctionStatus(auction);
               const isSelected = selectedAuction === auction.id;
               
               return (
                 <div
                   key={auction.id}
-                  className={`border-2 rounded-xl p-4 cursor-pointer transition-all ${
+                  className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
                     isSelected 
                       ? 'border-purple-500 bg-purple-50' 
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                   onClick={() => setSelectedAuction(auction.id)}
                 >
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-gray-900 truncate">{auction.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      status === 'active' ? 'bg-green-100 text-green-800' :
-                      status === 'ended' ? 'bg-yellow-100 text-yellow-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
-                      {status}
-                    </span>
+                  {/* Auction Image */}
+                  <div className="h-48 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
+                    {(() => {
+                      // Try to get image from localStorage
+                      const localAuctionData = localStorage.getItem(`auction-${auction.contractAddress}`);
+                      if (localAuctionData) {
+                        try {
+                          const data = JSON.parse(localAuctionData);
+                          if (data.image) {
+                            return (
+                              <img
+                                src={data.image}
+                                alt={auction.name}
+                                className="w-full h-full object-cover"
+                              />
+                            );
+                          }
+                        } catch (e) {
+                          console.log('Error parsing local auction data:', e);
+                        }
+                      }
+                      return (
+                        <div className="text-center text-gray-400">
+                          <div className="text-4xl mb-2">🖼️</div>
+                          <div className="text-sm">No Image</div>
+                        </div>
+                      );
+                    })()}
                   </div>
                   
-                  {auction.description && (
-                    <p className="text-sm text-gray-600 mb-3 line-clamp-2">{auction.description}</p>
-                  )}
-                  
-                  <div className="space-y-1 text-xs text-gray-500">
-                    <div>Contract: {auction.contractAddress ? `${auction.contractAddress.slice(0, 6)}...${auction.contractAddress.slice(-4)}` : 'N/A'}</div>
-                    <div>Created: {formatDate(auction.createdAt)}</div>
-                    <div>Time left: {getTimeRemaining(auction.endTime)}</div>
-                    <div>Bids: {auction.bidCount}</div>
-                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h3 className="font-semibold text-gray-900 truncate text-lg">{auction.name}</h3>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        status === 'active' ? 'bg-green-100 text-green-800 border border-green-200' :
+                        status === 'ended' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
+                        'bg-gray-100 text-gray-800 border border-gray-200'
+                      }`}>
+                        {status === 'active' ? '🟢 Active' : status === 'ended' ? '🟡 Ended' : '⚪ Finalized'}
+                      </span>
+                    </div>
+                    
+                    {auction.description && (
+                      <p className="text-sm text-gray-600 mb-3 line-clamp-2">{auction.description}</p>
+                    )}
+                    
+                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-500 mb-3">
+                      <div className="flex items-center space-x-1">
+                        <span>📅</span>
+                        <span>{formatDate(auction.createdAt)}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>⏰</span>
+                        <span>{getTimeRemaining(auction.endTime)}</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>💰</span>
+                        <span>{auction.bidCount} bids</span>
+                      </div>
+                      <div className="flex items-center space-x-1">
+                        <span>📋</span>
+                        <span className="truncate">{auction.contractAddress ? `${auction.contractAddress.slice(0, 6)}...${auction.contractAddress.slice(-4)}` : 'N/A'}</span>
+                      </div>
+                    </div>
                   
                   {isSelected && (
                     <div className="mt-3 pt-3 border-t border-gray-200">
@@ -538,6 +656,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                       </button>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}
