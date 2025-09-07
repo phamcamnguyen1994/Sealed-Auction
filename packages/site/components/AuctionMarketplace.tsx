@@ -154,9 +154,30 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       return;
     }
 
+    if (chainId !== 11155111) {
+      alert("Please switch to Sepolia Testnet to create auctions");
+      return;
+    }
+
     if (!newAuctionName.trim()) {
       alert("Please enter an auction name");
       return;
+    }
+
+    // Check if wallet has enough ETH for deployment
+    try {
+      if (ethersReadonlyProvider && 'getBalance' in ethersReadonlyProvider) {
+        const balance = await (ethersReadonlyProvider as any).getBalance(ethersSigner.address);
+        const balanceInEth = ethers.formatEther(balance || 0);
+        console.log("Wallet balance:", balanceInEth, "ETH");
+        
+        if (parseFloat(balanceInEth) < 0.001) {
+          alert("Insufficient ETH balance. Please get some Sepolia ETH from a faucet.");
+          return;
+        }
+      }
+    } catch (balanceError) {
+      console.warn("Could not check balance:", balanceError);
     }
 
     setIsCreatingAuction(true);
@@ -225,9 +246,15 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       
       alert(`New auction "${newAuctionName}" created successfully!\nContract Address: ${contractAddress}`);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to create auction:", error);
-      alert("Failed to create auction. Please try again.");
+      console.error("Error details:", {
+        message: error?.message,
+        code: error?.code,
+        reason: error?.reason,
+        data: error?.data
+      });
+      alert(`Failed to create auction: ${error?.message || error}. Please check console for details.`);
     } finally {
       setIsCreatingAuction(false);
     }
