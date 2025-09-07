@@ -184,16 +184,53 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
     try {
       // Import contract ABI and bytecode from contracts folder
       const contractData = await import('../contracts/SealedAuction.json');
-      const contractFactory = new ethers.ContractFactory(
-        contractData.default.abi,
-        contractData.default.bytecode,
-        ethersSigner
-      );
-
-      console.log("Deploying new auction contract...");
+      console.log("Contract data loaded:", {
+        hasAbi: !!contractData.default.abi,
+        hasBytecode: !!contractData.default.bytecode,
+        abiLength: contractData.default.abi?.length,
+        bytecodeLength: contractData.default.bytecode?.length
+      });
       
-      const contract = await contractFactory.deploy(newAuctionDuration);
+      // Validate contract data
+      if (!contractData.default.abi || !contractData.default.bytecode) {
+        throw new Error("Invalid contract data: missing ABI or bytecode");
+      }
+      
+      if (!contractData.default.bytecode.startsWith('0x')) {
+        throw new Error("Invalid bytecode: must start with 0x");
+      }
+      
+      let contractFactory;
+      try {
+        contractFactory = new ethers.ContractFactory(
+          contractData.default.abi,
+          contractData.default.bytecode,
+          ethersSigner
+        );
+        console.log("Contract factory created successfully:", !!contractFactory);
+      } catch (factoryError: any) {
+        console.error("Failed to create contract factory:", factoryError);
+        throw new Error(`Failed to create contract factory: ${factoryError?.message || factoryError}`);
+      }
+
+      console.log("Deploying new auction contract with duration:", newAuctionDuration);
+      
+      // Validate duration
+      if (!newAuctionDuration || newAuctionDuration <= 0) {
+        throw new Error("Invalid auction duration");
+      }
+      
+      let contract;
+      try {
+        contract = await contractFactory.deploy(newAuctionDuration);
+        console.log("Contract deployment transaction sent:", contract.deploymentTransaction()?.hash);
+      } catch (deployError: any) {
+        console.error("Failed to deploy contract:", deployError);
+        throw new Error(`Failed to deploy contract: ${deployError?.message || deployError}`);
+      }
+      
       await contract.waitForDeployment();
+      console.log("Contract deployment confirmed");
       
       const contractAddress = await contract.getAddress();
       console.log("New auction deployed at:", contractAddress);
