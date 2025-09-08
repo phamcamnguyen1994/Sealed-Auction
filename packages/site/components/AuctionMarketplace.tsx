@@ -49,7 +49,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   };
   
   // Registry contract address (deployed on Sepolia)
-  const REGISTRY_ADDRESS = "0x74b7dF65eeb26E977Ce17567A18088030C3363Df";
+  const REGISTRY_ADDRESS = "0xeE00ba349b4CAe6eC1a0e48e0aF6c6Bc72Ff8b65";
 
   const {
     provider,
@@ -81,15 +81,47 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
     }
   }, [ethersReadonlyProvider]);
 
-  // Load auctions from Registry contract
+  // Load auctions from Registry contract (primary) and localStorage (fallback)
   useEffect(() => {
     if (registryContract) {
       loadAuctionsFromRegistry();
+    } else {
+      // Fallback to localStorage if Registry contract is not available
+      const savedAuctions = localStorage.getItem('sealed-auctions');
+      if (savedAuctions) {
+        try {
+          const parsedAuctions = JSON.parse(savedAuctions);
+          setAuctions(parsedAuctions);
+          console.log("Loaded auctions from localStorage (fallback):", parsedAuctions.length);
+        } catch (error) {
+          console.error("Failed to parse saved auctions:", error);
+          setAuctions([]);
+        }
+      } else {
+        setAuctions([]);
+      }
     }
   }, [registryContract]);
 
   const loadAuctionsFromRegistry = async () => {
-    if (!registryContract) return;
+    if (!registryContract) {
+      console.log("Registry contract not loaded, falling back to localStorage");
+      // Fallback to localStorage if Registry contract is not available
+      const savedAuctions = localStorage.getItem('sealed-auctions');
+      if (savedAuctions) {
+        try {
+          const parsedAuctions = JSON.parse(savedAuctions);
+          setAuctions(parsedAuctions);
+          console.log("Loaded auctions from localStorage:", parsedAuctions.length);
+        } catch (error) {
+          console.error("Failed to parse saved auctions:", error);
+          setAuctions([]);
+        }
+      } else {
+        setAuctions([]);
+      }
+      return;
+    }
     
     try {
       console.log("Loading auctions from Registry...");
@@ -99,8 +131,21 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       console.log("Total auctions in Registry:", Number(totalAuctions));
       
       if (Number(totalAuctions) === 0) {
-        console.log("No auctions found in Registry");
-        setAuctions([]);
+        console.log("No auctions found in Registry, falling back to localStorage");
+        // Fallback to localStorage if Registry is empty
+        const savedAuctions = localStorage.getItem('sealed-auctions');
+        if (savedAuctions) {
+          try {
+            const parsedAuctions = JSON.parse(savedAuctions);
+            setAuctions(parsedAuctions);
+            console.log("Loaded auctions from localStorage:", parsedAuctions.length);
+          } catch (error) {
+            console.error("Failed to parse saved auctions:", error);
+            setAuctions([]);
+          }
+        } else {
+          setAuctions([]);
+        }
         return;
       }
       
@@ -142,8 +187,21 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       console.log("Loaded auctions:", formattedAuctions.length);
     } catch (error) {
       console.error("Failed to load auctions from Registry:", error);
-      // Set empty array on error
-      setAuctions([]);
+      console.log("Falling back to localStorage due to Registry error");
+      // Fallback to localStorage on error
+      const savedAuctions = localStorage.getItem('sealed-auctions');
+      if (savedAuctions) {
+        try {
+          const parsedAuctions = JSON.parse(savedAuctions);
+          setAuctions(parsedAuctions);
+          console.log("Loaded auctions from localStorage after Registry error:", parsedAuctions.length);
+        } catch (parseError) {
+          console.error("Failed to parse saved auctions:", parseError);
+          setAuctions([]);
+        }
+      } else {
+        setAuctions([]);
+      }
     }
   };
 
@@ -187,47 +245,55 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
     setIsCreatingAuction(true);
     try {
-      // Import contract ABI and bytecode from contracts folder
-      const contractData = await import('../contracts/SealedAuction.json');
+      // Import contract ABI and bytecode from artifacts folder
+      const contractData = await import('../../../artifacts/contracts/SealedAuction.sol/SealedAuction.json');
       console.log("Contract data loaded:", {
-        hasAbi: !!(contractData.default?.abi || contractData.abi),
-        abiLength: (contractData.default?.abi || contractData.abi)?.length,
-        format: contractData.default ? 'old' : 'new'
+        hasAbi: !!contractData.abi,
+        hasBytecode: !!contractData.bytecode,
+        abiLength: contractData.abi?.length,
+        bytecodeLength: contractData.bytecode?.length
       });
       
-      // Validate contract data - check both old and new format
-      const abi = contractData.default?.abi || contractData.abi;
+      // Validate contract data
+      const abi = contractData.abi;
+      const bytecode = contractData.bytecode;
       
       if (!abi) {
         throw new Error("Invalid contract data: missing ABI");
       }
       
-      // For now, we'll just create a mock contract address since we don't have bytecode
-      // In a real implementation, you would deploy the contract here
-      const mockContractAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
-
-      console.log("Creating mock auction contract with duration:", newAuctionDuration);
+      if (!bytecode) {
+        throw new Error("Invalid contract data: missing bytecode");
+      }
+      
+      // Deploy real SealedAuction contract
+      console.log("Deploying SealedAuction contract with duration:", newAuctionDuration);
 
       if (!newAuctionDuration || newAuctionDuration <= 0) {
         throw new Error("Invalid auction duration");
       }
 
-      // Simulate contract deployment
-      const contract = {
-        getAddress: () => Promise.resolve(mockContractAddress),
-        deploymentTransaction: () => ({ hash: `0x${Math.random().toString(16).substr(2, 64)}` })
-      };
+      // Get contract factory
+      const contractFactory = new ethers.ContractFactory(
+        abi,
+        bytecode,
+        ethersSigner
+      );
 
-      console.log("Mock contract created with address:", mockContractAddress);
-
-      // Simulate waiting for deployment
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Deploy the contract
+      console.log("Deploying contract...");
+      const contract = await contractFactory.deploy(newAuctionDuration);
+      
+      console.log("Contract deployment transaction:", contract.deploymentTransaction()?.hash);
+      
+      // Wait for deployment to be confirmed
+      await contract.waitForDeployment();
       console.log("Contract deployment confirmed");
       
       const contractAddress = await contract.getAddress();
       console.log("New auction deployed at:", contractAddress);
 
-      // Register auction in Registry contract
+      // Register auction in Registry contract for cross-user sharing
       if (registryContract && ethersSigner) {
         try {
           console.log("Registering auction in Registry...");
@@ -244,16 +310,25 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           await tx.wait();
           console.log("Auction registered in Registry:", tx.hash);
           
-          // Reload auctions from Registry
+          // Reload auctions from Registry to show the new auction
           await loadAuctionsFromRegistry();
           
-        } catch (error) {
+        } catch (error: any) {
           console.error("Failed to register auction in Registry:", error);
-          alert("Auction created but failed to register in marketplace. Please try again.");
+          console.error("Error details:", {
+            message: error?.message,
+            code: error?.code,
+            reason: error?.reason,
+            data: error?.data
+          });
+          
+          // Show more detailed error message
+          const errorMsg = error?.message || error?.reason || "Unknown error";
+          alert(`Auction created but failed to register in marketplace.\n\nError: ${errorMsg}\n\nPlease check console for details and try again.`);
         }
       }
 
-      // Save auction data including image to localStorage
+      // Save auction data including image to localStorage (always save, even if Registry failed)
       const auctionData = {
         contractAddress,
         name: newAuctionName,
@@ -266,6 +341,20 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       // Save to localStorage for auction view to access
       localStorage.setItem(`auction-${contractAddress}`, JSON.stringify(auctionData));
       localStorage.setItem('active-contract-address', contractAddress);
+
+      // Add to local auctions list for immediate display
+      const newAuction: AuctionInfo = {
+        id: contractAddress,
+        contractAddress: contractAddress,
+        name: newAuctionName,
+        description: newAuctionDescription,
+        createdAt: Date.now(),
+        endTime: Date.now() + (newAuctionDuration * 1000),
+        status: 'active',
+        bidCount: 0
+      };
+      
+      setAuctions(prev => [newAuction, ...prev]);
 
       // Reset form
       setNewAuctionName("");
@@ -543,7 +632,27 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         <div className="flex items-center justify-between mb-4">
           <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>All Auctions</h2>
           <button
-            onClick={loadAuctionsFromRegistry}
+            onClick={() => {
+              // Load from Registry contract (primary) or localStorage (fallback)
+              if (registryContract) {
+                loadAuctionsFromRegistry();
+              } else {
+                // Fallback to localStorage if Registry contract is not available
+                const savedAuctions = localStorage.getItem('sealed-auctions');
+                if (savedAuctions) {
+                  try {
+                    const parsedAuctions = JSON.parse(savedAuctions);
+                    setAuctions(parsedAuctions);
+                    console.log("Refreshed auctions from localStorage (fallback):", parsedAuctions.length);
+                  } catch (error) {
+                    console.error("Failed to parse saved auctions:", error);
+                    setAuctions([]);
+                  }
+                } else {
+                  setAuctions([]);
+                }
+              }
+            }}
             className={`${
               theme === 'dark' ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' :
               theme === 'orange' ? 'bg-orange-500 text-white hover:bg-orange-600' :
