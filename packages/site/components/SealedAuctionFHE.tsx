@@ -276,7 +276,12 @@ export const SealedAuctionFHE = () => {
     return null; // Don't render anything, let the hero section handle it
   }
 
-  if (sealedAuction.isDeployed === false) {
+  // Don't show error if no contract is selected - just show marketplace
+  if (sealedAuction.isDeployed === false && !currentContractAddress) {
+    return <AuctionMarketplace onClose={() => setShowMarketplace(false)} />;
+  }
+  
+  if (sealedAuction.isDeployed === false && currentContractAddress) {
     return errorNotDeployed(chainId);
   }
 

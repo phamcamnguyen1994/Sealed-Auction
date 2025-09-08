@@ -269,7 +269,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         throw new Error("Invalid auction duration");
       }
 
-      // Deploy real SealedAuction contract
+      // Deploy real SealedAuction contract with retry logic for nonce issues
       console.log("Deploying SealedAuction contract with duration:", newAuctionDuration);
       
       const contractFactory = new ethers.ContractFactory(
@@ -279,7 +279,42 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       );
 
       console.log("Deploying contract...");
-      const contract = await contractFactory.deploy(newAuctionDuration);
+      
+      // Retry logic for nonce issues
+      let contract;
+      let retryCount = 0;
+      const maxRetries = 3;
+      let lastError: any = null;
+      
+      while (retryCount < maxRetries) {
+        try {
+          contract = await contractFactory.deploy(newAuctionDuration);
+          break; // Success, exit retry loop
+        } catch (error: any) {
+          lastError = error;
+          console.log(`Deploy attempt ${retryCount + 1} failed:`, {
+            code: error.code,
+            message: error.message,
+            reason: error.reason
+          });
+          
+          if (error.code === 'NONCE_EXPIRED' || error.message?.includes('nonce')) {
+            retryCount++;
+            console.log(`Nonce error, retrying... (${retryCount}/${maxRetries})`);
+            // Wait a bit before retry
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            continue;
+          }
+          throw error; // Re-throw if it's not a nonce error
+        }
+      }
+      
+      if (!contract) {
+        const errorMessage = lastError 
+          ? `Failed to deploy contract after ${maxRetries} retries. Last error: ${lastError.message || lastError.reason || 'Unknown error'}`
+          : `Failed to deploy contract after ${maxRetries} retries`;
+        throw new Error(errorMessage);
+      }
       
       console.log("Contract deployment transaction:", contract.deploymentTransaction()?.hash);
       
@@ -296,12 +331,46 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           const registryWithSigner = registryContract.connect(ethersSigner) as any;
           const endTime = Math.floor((Date.now() + (newAuctionDuration * 1000)) / 1000); // Convert to seconds
           
-          const tx = await registryWithSigner.registerAuction(
-            contractAddress,
-            newAuctionName,
-            newAuctionDescription,
-            endTime
-          );
+          // Retry logic for Registry registration nonce issues
+          let tx;
+          let registryRetryCount = 0;
+          const maxRegistryRetries = 3;
+          let lastRegistryError: any = null;
+          
+          while (registryRetryCount < maxRegistryRetries) {
+            try {
+              tx = await registryWithSigner.registerAuction(
+                contractAddress,
+                newAuctionName,
+                newAuctionDescription,
+                endTime
+              );
+              break; // Success, exit retry loop
+            } catch (error: any) {
+              lastRegistryError = error;
+              console.log(`Registry registration attempt ${registryRetryCount + 1} failed:`, {
+                code: error.code,
+                message: error.message,
+                reason: error.reason
+              });
+              
+              if (error.code === 'NONCE_EXPIRED' || error.message?.includes('nonce')) {
+                registryRetryCount++;
+                console.log(`Registry nonce error, retrying... (${registryRetryCount}/${maxRegistryRetries})`);
+                // Wait a bit before retry
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                continue;
+              }
+              throw error; // Re-throw if it's not a nonce error
+            }
+          }
+          
+          if (!tx) {
+            const errorMessage = lastRegistryError 
+              ? `Failed to register auction in Registry after ${maxRegistryRetries} retries. Last error: ${lastRegistryError.message || lastRegistryError.reason || 'Unknown error'}`
+              : `Failed to register auction in Registry after ${maxRegistryRetries} retries`;
+            throw new Error(errorMessage);
+          }
           
           await tx.wait();
           console.log("Auction registered in Registry:", tx.hash);
@@ -320,7 +389,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           
           // Show more detailed error message
           const errorMsg = error?.message || error?.reason || "Unknown error";
-          alert(`Auction created but failed to register in marketplace.\n\nError: ${errorMsg}\n\nPlease check console for details and try again.`);
+          alert(`⚠️ Auction created successfully but failed to register in marketplace.\n\nContract Address: ${contractAddress}\nError: ${errorMsg}\n\n✅ Your auction is still functional and saved locally.\n❌ Other users may not see it in the marketplace.\n\nPlease try refreshing the page or contact support if the issue persists.`);
         }
       }
 
@@ -368,7 +437,22 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         reason: error?.reason,
         data: error?.data
       });
-      alert(`Failed to create auction: ${error?.message || error}. Please check console for details.`);
+      
+      // Provide more helpful error messages based on error type
+      let errorMessage = "Failed to create auction";
+      if (error?.message?.includes("insufficient funds")) {
+        errorMessage = "❌ Insufficient funds for gas fees. Please add more ETH to your wallet.";
+      } else if (error?.message?.includes("user rejected")) {
+        errorMessage = "❌ Transaction was rejected by user. Please try again.";
+      } else if (error?.message?.includes("nonce")) {
+        errorMessage = "❌ Transaction nonce error. Please wait a moment and try again.";
+      } else if (error?.message?.includes("network")) {
+        errorMessage = "❌ Network error. Please check your connection and try again.";
+      } else {
+        errorMessage = `❌ ${error?.message || error?.reason || "Unknown error occurred"}`;
+      }
+      
+      alert(`${errorMessage}\n\nPlease check console for technical details.`);
     } finally {
       setIsCreatingAuction(false);
     }
