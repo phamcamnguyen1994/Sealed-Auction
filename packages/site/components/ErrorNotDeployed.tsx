@@ -5,14 +5,14 @@ export function errorNotDeployed(chainId: number | undefined) {
         <p className="text-4xl leading-relaxed">
           {" "}
           <span className="font-mono bg-red-500">Error</span>:{" "}
-          <span className="font-mono bg-white">FHECounter.sol</span> Contract
+          <span className="font-mono bg-white">SealedAuction.sol</span> Contract
           Not Deployed on{" "}
           <span className="font-mono bg-white">chainId={chainId}</span>{" "}
           {chainId === 11155111 ? "(Sepolia)" : ""} or Deployment Address
           Missing.
         </p>
         <p className="text-2xl leading-relaxed mt-8">
-          It appears that the FHECounter.sol contract has either not been
+          It appears that the SealedAuction.sol contract has either not been
           deployed yet, or the deployment address is missing from the ABI
           directory{" "}
           <span className="font-mono bg-white">root/packages/abi</span>. Run the

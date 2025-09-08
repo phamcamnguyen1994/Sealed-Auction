@@ -22,6 +22,7 @@ export const SealedAuctionFHE = () => {
   const [bidAmount, setBidAmount] = useState<number>(70);
   const [showMarketplace, setShowMarketplace] = useState<boolean>(false);
   const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(null);
+  const [isDisconnected, setIsDisconnected] = useState<boolean>(false);
   const [auctionItem, setAuctionItem] = useState<{
     name: string;
     description: string;
@@ -61,8 +62,8 @@ export const SealedAuctionFHE = () => {
   });
 
   //////////////////////////////////////////////////////////////////////////////
-  // useFHECounter is a custom hook containing all the FHECounter logic, including
-  // - calling the FHECounter contract
+  // useSealedAuctionFHE is a custom hook containing all the SealedAuction logic, including
+  // - calling the SealedAuction contract
   // - encrypting FHE inputs
   // - decrypting FHE handles
   //////////////////////////////////////////////////////////////////////////////
@@ -83,9 +84,9 @@ export const SealedAuctionFHE = () => {
   // --------
   // A basic page containing
   // - A bunch of debug values allowing you to better visualize the React state
-  // - 1x "Decrypt" button (to decrypt the latest FHECounter count handle)
-  // - 1x "Increment" button (to increment the FHECounter)
-  // - 1x "Decrement" button (to decrement the FHECounter)
+  // - 1x "Refresh" button (to get the current auction state)
+  // - 1x "Place Bid" button (to place a sealed bid using FHE operations)
+  // - 1x "Finalize" button (to finalize the auction)
   //////////////////////////////////////////////////////////////////////////////
 
   const buttonClass =
@@ -105,14 +106,42 @@ export const SealedAuctionFHE = () => {
     return ethersSigner?.address?.toLowerCase() === sellerAddress.toLowerCase();
   }, [ethersSigner?.address, contractSeller, auctionItem.seller]);
 
+  // Check if user was disconnected
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const wasDisconnected = localStorage.getItem('user-disconnected');
+      if (wasDisconnected === 'true') {
+        setIsDisconnected(true);
+        localStorage.removeItem('user-disconnected');
+      }
+    }
+  }, []);
+
+  // Listen for connect wallet event from hero section
+  useEffect(() => {
+    const handleConnectWallet = () => {
+      setIsDisconnected(false);
+      connect();
+    };
+
+    window.addEventListener('connect-wallet', handleConnectWallet);
+    return () => {
+      window.removeEventListener('connect-wallet', handleConnectWallet);
+    };
+  }, [connect]);
+
   // Listen for auction selection from marketplace
   useEffect(() => {
     const handleAuctionSelected = (event: any) => {
       const { contractAddress, auctionId } = event.detail;
       console.log('Auction selected:', { contractAddress, auctionId });
       setCurrentContractAddress(contractAddress);
-      // Force refresh of the sealed auction hook
-      window.location.reload();
+      // Close marketplace and show auction details
+      setShowMarketplace(false);
+      // Update localStorage to persist the selection
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('active-contract-address', contractAddress);
+      }
     };
 
     const handleAuctionDataLoaded = (event: any) => {
@@ -240,18 +269,8 @@ export const SealedAuctionFHE = () => {
 
 
 
-  if (!isConnected) {
-    return (
-      <div className="mx-auto">
-        <button
-          className={buttonClass}
-          disabled={isConnected}
-          onClick={connect}
-        >
-          <span className="text-4xl p-6">Connect to MetaMask</span>
-        </button>
-      </div>
-    );
+  if (!isConnected || isDisconnected) {
+    return null; // Don't render anything, let the hero section handle it
   }
 
   if (sealedAuction.isDeployed === false) {
@@ -318,13 +337,13 @@ export const SealedAuctionFHE = () => {
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
       'bg-gray-50'
     }`}>
-      <div className={`col-span-full mx-20 bg-gradient-to-r ${
+      <div className={`col-span-full mx-8 bg-gradient-to-r ${
         theme === 'dark' ? 'from-gray-800 to-gray-900' : 
         theme === 'orange' ? 'from-orange-500 to-amber-600' : 
         'from-purple-600 to-blue-600'
       } text-white rounded-xl shadow-lg border border-gray-700`}>
         <div className="px-8 py-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-4xl font-bold mb-2">🔐 Sealed Auction</h1>
               <p className={`text-xl ${
@@ -332,7 +351,7 @@ export const SealedAuctionFHE = () => {
                 theme === 'orange' ? 'text-orange-100' :
                 'text-blue-50'
               }`}>Confidential Bidding with FHEVM</p>
-      </div>
+            </div>
             <div className="flex items-center space-x-4">
               <button
                 onClick={toggleTheme}
@@ -363,61 +382,63 @@ export const SealedAuctionFHE = () => {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-      {/* Simplified Info Section */}
-      <div className={`col-span-full mx-20 mt-4 px-5 pb-4 rounded-lg border-2 ${
-        theme === 'dark' ? 'bg-gradient-to-r from-gray-900/80 to-gray-800/80 border-gray-700' : 
-        theme === 'orange' ? 'bg-gradient-to-r from-orange-100/80 to-amber-50/80 border-orange-300' :
-        'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
-      }`}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="text-center">
-            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>🌐 Network</h3>
-            <p className={`text-sm ${getTextSecondary()}`}>
-              {chainId === 11155111 ? "Sepolia Testnet" : "Wrong Network"}
-            </p>
-            <p className={`text-xs font-mono ${getTextMuted()}`}>{chainId}</p>
-            {chainId !== 11155111 && (
-              <p className="text-xs text-red-500">⚠️ Switch to Sepolia</p>
-            )}
-          </div>
-          <div className="text-center">
-            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>👤 Account</h3>
-            <p className={`text-sm truncate ${getTextSecondary()}`}>
-              {ethersSigner ? `${ethersSigner.address.slice(0, 6)}...${ethersSigner.address.slice(-4)}` : "Not connected"}
-            </p>
-            {ethersSigner && (
-              <button
-                onClick={() => {
-                  if (typeof window !== 'undefined' && (window as any).ethereum && (window as any).ethereum.disconnect) {
-                    (window as any).ethereum.disconnect();
-                  }
-                  // Force page reload to reset state
-                  window.location.reload();
-                }}
-                className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
-              >
-                Disconnect
-              </button>
-            )}
-          </div>
-          <div className="text-center">
-            <h3 className={`font-semibold text-lg ${getTextPrimary()}`}>🔗 Contract</h3>
-            <p className={`text-sm truncate ${getTextSecondary()}`}>
-              {sealedAuction.contractAddress ? `${sealedAuction.contractAddress.slice(0, 6)}...${sealedAuction.contractAddress.slice(-4)}` : "Not deployed"}
-            </p>
-            <p className="text-xs text-green-600 font-semibold">✅ Deployed</p>
-            <p className="text-xs text-blue-600 mt-1">
-              🔗 <a href={`https://sepolia.etherscan.io/address/${sealedAuction.contractAddress}`} target="_blank" rel="noopener noreferrer" className="underline">View on Etherscan</a>
-            </p>
+          
+          {/* Connection Info moved here */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="text-center">
+              <h3 className={`font-semibold text-lg ${theme === 'dark' ? 'text-gray-100' : 'text-white'}`}>🌐 Network</h3>
+              <p className={`text-sm ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+                {chainId === 11155111 ? "Sepolia Testnet" : "Wrong Network"}
+              </p>
+              <p className={`text-xs font-mono ${theme === 'dark' ? 'text-gray-400' : 'text-blue-200'}`}>{chainId}</p>
+              {chainId !== 11155111 && (
+                <p className="text-xs text-red-300">⚠️ Switch to Sepolia</p>
+              )}
+            </div>
+            <div className="text-center">
+              <h3 className={`font-semibold text-lg ${theme === 'dark' ? 'text-gray-100' : 'text-white'}`}>👤 Account</h3>
+              <p className={`text-sm truncate ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+                {ethersSigner ? `${ethersSigner.address.slice(0, 6)}...${ethersSigner.address.slice(-4)}` : "Not connected"}
+              </p>
+              {ethersSigner && (
+                <button
+                  onClick={() => {
+                    // Set disconnected state
+                    setIsDisconnected(true);
+                    
+                    // Clear localStorage
+                    if (typeof window !== 'undefined') {
+                      localStorage.removeItem('active-contract-address');
+                      localStorage.removeItem('wallet-connected');
+                      localStorage.setItem('user-disconnected', 'true');
+                      // Dispatch event to notify page.tsx
+                      const event = new CustomEvent('wallet-disconnected');
+                      window.dispatchEvent(event);
+                    }
+                  }}
+                  className="mt-2 px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600 transition-colors"
+                >
+                  Disconnect
+                </button>
+              )}
+            </div>
+            <div className="text-center">
+              <h3 className={`font-semibold text-lg ${theme === 'dark' ? 'text-gray-100' : 'text-white'}`}>🔗 Contract</h3>
+              <p className={`text-sm truncate ${theme === 'dark' ? 'text-gray-300' : 'text-blue-100'}`}>
+                {sealedAuction.contractAddress ? `${sealedAuction.contractAddress.slice(0, 6)}...${sealedAuction.contractAddress.slice(-4)}` : "Not deployed"}
+              </p>
+              <p className="text-xs text-green-300 font-semibold">✅ Deployed</p>
+              <p className="text-xs text-blue-200 mt-1">
+                🔗 <a href={`https://sepolia.etherscan.io/address/${sealedAuction.contractAddress}`} target="_blank" rel="noopener noreferrer" className="underline">View on Etherscan</a>
+              </p>
+            </div>
           </div>
         </div>
       </div>
 
 
       {/* Auction Info Display */}
-      <div className="col-span-full mx-20 px-6 py-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
+      <div className="col-span-full mx-8 px-6 py-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Auction Image */}
           <div className="relative">
@@ -693,7 +714,7 @@ export const SealedAuctionFHE = () => {
         
         {/* Message Bar */}
       {sealedAuction.message && (
-        <div className="col-span-full mx-20">
+        <div className="col-span-full mx-8">
           <div className={`${
             theme === 'dark' ? 'bg-gray-900' : 
             theme === 'orange' ? 'bg-orange-100' :
