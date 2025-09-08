@@ -82,7 +82,7 @@ function useMetaMaskInternal(): UseMetaMaskState {
 
   const isConnected = hasProvider && hasAccounts && hasChain;
 
-  const connect = useCallback(() => {
+  const connect = useCallback(async () => {
     if (!_currentProvider) {
       return;
     }
@@ -92,8 +92,45 @@ function useMetaMaskInternal(): UseMetaMaskState {
       return;
     }
 
-    // Prompt connection
-    _currentProvider.request({ method: "eth_requestAccounts" });
+    try {
+      // Prompt connection
+      await _currentProvider.request({ method: "eth_requestAccounts" });
+      
+      // Auto switch to Sepolia after connection
+      const sepoliaChainId = "0xaa36a7"; // 11155111 in hex
+      const currentChainId = await _currentProvider.request({ method: "eth_chainId" });
+      
+      if (currentChainId !== sepoliaChainId) {
+        try {
+          await _currentProvider.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: sepoliaChainId }],
+          });
+        } catch (switchError: any) {
+          // If Sepolia is not added, add it
+          if (switchError.code === 4902) {
+            await _currentProvider.request({
+              method: "wallet_addEthereumChain",
+              params: [
+                {
+                  chainId: sepoliaChainId,
+                  chainName: "Sepolia Test Network",
+                  nativeCurrency: {
+                    name: "Sepolia Ether",
+                    symbol: "ETH",
+                    decimals: 18,
+                  },
+                  rpcUrls: ["https://sepolia.infura.io/v3/"],
+                  blockExplorerUrls: ["https://sepolia.etherscan.io/"],
+                },
+              ],
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+    }
   }, [_currentProvider, accounts]);
 
   useEffect(() => {
