@@ -134,14 +134,13 @@ export const SealedAuctionFHE = () => {
   useEffect(() => {
     const handleAuctionSelected = (event: any) => {
       const { contractAddress, auctionId } = event.detail;
-      console.log('Auction selected:', { contractAddress, auctionId });
+      console.log('🎯 Auction selected event received:', { contractAddress, auctionId });
+      console.log('🎯 Setting current contract address to:', contractAddress);
       setCurrentContractAddress(contractAddress);
       // Close marketplace and show auction details
       setShowMarketplace(false);
-      // Update localStorage to persist the selection
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('active-contract-address', contractAddress);
-      }
+      // Load auction info from Registry (on-chain only)
+      loadAuctionInfoFromRegistry(contractAddress);
     };
 
     const handleAuctionDataLoaded = (event: any) => {
@@ -160,23 +159,8 @@ export const SealedAuctionFHE = () => {
     window.addEventListener('auction-selected', handleAuctionSelected);
     window.addEventListener('auction-data-loaded', handleAuctionDataLoaded);
     
-    // Load active contract address from localStorage on mount (only after component is mounted)
-    if (typeof window !== 'undefined') {
-      // Use setTimeout to ensure this runs after hydration
-      setTimeout(() => {
-        const activeContractAddress = localStorage.getItem('active-contract-address');
-        if (activeContractAddress) {
-          setCurrentContractAddress(activeContractAddress);
-          // Load auction info from Registry
-          loadAuctionInfoFromRegistry(activeContractAddress);
-        } else {
-          // If no active auction, try to load from default contract
-          if (sealedAuction.contractAddress) {
-            loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
-          }
-        }
-      }, 100);
-    }
+    // No localStorage - only load from Registry when auction is selected
+    console.log('🔄 Component mounted, waiting for auction selection...');
 
     return () => {
       window.removeEventListener('auction-selected', handleAuctionSelected);
@@ -184,90 +168,42 @@ export const SealedAuctionFHE = () => {
     };
   }, []);
 
-  // Load auction info from Registry and localStorage
+  // Load auction info from Registry (on-chain only)
   const loadAuctionInfoFromRegistry = async (contractAddress: string) => {
     if (!ethersReadonlyProvider) return;
     
+    console.log('🔍 Loading auction info for contract:', contractAddress);
+    
     try {
-      // First try to load from localStorage (includes image)
-      const localAuctionData = localStorage.getItem(`auction-${contractAddress}`);
-      if (localAuctionData) {
-        const auctionData = JSON.parse(localAuctionData);
-        console.log('Auction data from localStorage:', auctionData);
-        
-        setAuctionItem(prev => ({
-          ...prev,
-          name: auctionData.name || prev.name,
-          description: auctionData.description || prev.description,
-          image: auctionData.image || prev.image,
-          seller: prev.seller // Keep existing seller
-        }));
-        return;
-      }
-      
-      // Fallback to Registry if no localStorage data
-      try {
-        const registryData = await import('../contracts/AuctionRegistry.json');
-        const registryContract = new ethers.Contract(
-          "0x74b7dF65eeb26E977Ce17567A18088030C3363Df",
-          registryData.abi,
-          ethersReadonlyProvider
-        );
-        
-        const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
-        console.log('Auction info from Registry:', auctionInfo);
-        
-        // Update auction item with info from Registry
-        setAuctionItem(prev => ({
-          ...prev,
-          name: auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-          description: auctionInfo.description || "Auction created on the blockchain",
-          seller: auctionInfo.creator || prev.seller
-        }));
-      } catch (registryError) {
-        console.log('Registry not available, using contract address as name');
-        // Final fallback - use contract address as name
-        setAuctionItem(prev => ({
-          ...prev,
-          name: `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-          description: "Auction created on the blockchain",
-          seller: prev.seller
-        }));
-      }
-      
-    } catch (error) {
-      console.error('Failed to load auction info:', error);
-    }
-  };
-
-  // Load auction info when contract address changes
-  useEffect(() => {
-    if (sealedAuction.contractAddress && ethersReadonlyProvider) {
-      // Load auction info from Registry/localStorage
-      loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
-      
-      // Try to get seller from contract
-      const contract = new ethers.Contract(
-        sealedAuction.contractAddress,
-        sealedAuction.contractAddress ? require('../contracts/SealedAuction.json').abi : [],
+      // Load from Registry contract (on-chain data only)
+      const registryData = await import('../contracts/AuctionRegistry.json');
+      const registryContract = new ethers.Contract(
+        "0xeE00ba349b4CAe6eC1a0e48e0aF6c6Bc72Ff8b65",
+        registryData.abi,
         ethersReadonlyProvider
       );
       
-      contract.seller()
-        .then((seller: string) => {
-          setContractSeller(seller);
-          // Update auction item with real seller
-          setAuctionItem(prev => ({
-            ...prev,
-            seller: seller
-          }));
-        })
-        .catch(() => {
-          // Contract doesn't have seller() method or other error
-          // Keep using default seller
-        });
+      const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
+      console.log('✅ Auction info from Registry:', auctionInfo);
+      
+      // Update auction item with info from Registry
+      setAuctionItem(prev => ({
+        ...prev,
+        name: auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+        description: auctionInfo.description || "Auction created on the blockchain",
+        seller: auctionInfo.creator || prev.seller
+      }));
+    } catch (registryError) {
+      console.log('❌ Registry not available, using contract address as name');
+      // Final fallback - use contract address as name
+      setAuctionItem(prev => ({
+        ...prev,
+        name: `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+        description: "Auction created on the blockchain",
+        seller: prev.seller
+      }));
     }
-  }, [sealedAuction.contractAddress, ethersReadonlyProvider]);
+  };
 
 
 

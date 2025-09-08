@@ -72,86 +72,86 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
             ethersReadonlyProvider
           );
           setRegistryContract(contract);
-          console.log("Registry contract loaded:", REGISTRY_ADDRESS);
+          console.log("✅ Registry contract loaded:", REGISTRY_ADDRESS);
+          console.log("🌐 Network:", (ethersReadonlyProvider as any).network);
+          console.log("🔗 Contract instance:", contract);
         } catch (error) {
-          console.error("Failed to load Registry contract:", error);
+          console.error("❌ Failed to load Registry contract:", error);
         }
       };
       loadRegistryContract();
     }
   }, [ethersReadonlyProvider]);
 
-  // Load auctions from Registry contract (primary) and localStorage (fallback)
+  // Load auctions from Registry contract (on-chain only)
   useEffect(() => {
     if (registryContract) {
-      loadAuctionsFromRegistry();
+      loadAuctionsFromRegistry("component-mount");
     } else {
-      // Fallback to localStorage if Registry contract is not available
-      const savedAuctions = localStorage.getItem('sealed-auctions');
-      if (savedAuctions) {
-        try {
-          const parsedAuctions = JSON.parse(savedAuctions);
-          setAuctions(parsedAuctions);
-          console.log("Loaded auctions from localStorage (fallback):", parsedAuctions.length);
-        } catch (error) {
-          console.error("Failed to parse saved auctions:", error);
-          setAuctions([]);
-        }
-      } else {
-        setAuctions([]);
-      }
+      console.log("Registry contract not loaded, no fallback");
+      setAuctions([]);
     }
   }, [registryContract]);
 
-  const loadAuctionsFromRegistry = async () => {
+  const loadAuctionsFromRegistry = async (source = "unknown") => {
     if (!registryContract) {
-      console.log("Registry contract not loaded, falling back to localStorage");
-      // Fallback to localStorage if Registry contract is not available
-      const savedAuctions = localStorage.getItem('sealed-auctions');
-      if (savedAuctions) {
-        try {
-          const parsedAuctions = JSON.parse(savedAuctions);
-          setAuctions(parsedAuctions);
-          console.log("Loaded auctions from localStorage:", parsedAuctions.length);
-        } catch (error) {
-          console.error("Failed to parse saved auctions:", error);
-          setAuctions([]);
-        }
-      } else {
-        setAuctions([]);
-      }
+      console.log("❌ Registry contract not loaded, no fallback");
       return;
     }
     
     try {
-      console.log("Loading auctions from Registry...");
+      console.log("🔄 Loading auctions from Registry...");
+      console.log("📍 Registry address:", "0xeE00ba349b4CAe6eC1a0e48e0aF6c6Bc72Ff8b65");
+      console.log("🌐 Current network chainId:", chainId);
+      console.log("🔗 Provider:", (ethersReadonlyProvider as any)?.network);
+      console.log("🎯 Called from:", source);
+      
+      // Debug RPC endpoint
+      if (ethersReadonlyProvider && 'connection' in ethersReadonlyProvider) {
+        console.log("🌐 RPC endpoint:", (ethersReadonlyProvider as any).connection?.url);
+      } else if (ethersReadonlyProvider && 'provider' in ethersReadonlyProvider) {
+        console.log("🌐 RPC endpoint:", (ethersReadonlyProvider as any).provider?.connection?.url);
+      } else {
+        console.log("🌐 RPC endpoint: MetaMask BrowserProvider (no direct URL)");
+      }
       
       // First check if Registry has any auctions
       const totalAuctions = await registryContract.getTotalAuctions();
-      console.log("Total auctions in Registry:", Number(totalAuctions));
+      console.log("📊 Total auctions in Registry:", Number(totalAuctions));
+      console.log("⏰ Timestamp:", new Date().toISOString());
+      console.log("🔍 Environment:", process.env.NODE_ENV || 'development');
+      console.log("🔍 NEXT_PUBLIC_RPC_URL:", process.env.NEXT_PUBLIC_RPC_URL || 'not set');
+      console.log("🔍 NEXT_PUBLIC_CHAIN_ID:", process.env.NEXT_PUBLIC_CHAIN_ID || 'not set');
       
       if (Number(totalAuctions) === 0) {
-        console.log("No auctions found in Registry, falling back to localStorage");
-        // Fallback to localStorage if Registry is empty
-        const savedAuctions = localStorage.getItem('sealed-auctions');
-        if (savedAuctions) {
-          try {
-            const parsedAuctions = JSON.parse(savedAuctions);
-            setAuctions(parsedAuctions);
-            console.log("Loaded auctions from localStorage:", parsedAuctions.length);
-          } catch (error) {
-            console.error("Failed to parse saved auctions:", error);
-            setAuctions([]);
-          }
-        } else {
-          setAuctions([]);
-        }
+        console.log("❌ No auctions found in Registry");
+        setAuctions([]);
         return;
       }
       
       // Get all auctions
       const allAuctions = await registryContract.getAllAuctions();
-      console.log("Raw auctions data:", allAuctions);
+      console.log("📋 Raw auctions data from Registry:", allAuctions);
+      console.log("📊 Total auctions returned:", allAuctions.length);
+      
+      // Debug: Check each auction address individually (skip if function doesn't exist)
+      try {
+        for (let i = 0; i < Number(totalAuctions); i++) {
+          try {
+            const auctionAddress = await registryContract.getAuctionAddress(i);
+            const auctionInfo = await registryContract.getAuctionByAddress(auctionAddress);
+            console.log(`🔍 Individual check - Auction ${i}:`, {
+              address: auctionAddress,
+              name: auctionInfo.name,
+              description: auctionInfo.description
+            });
+          } catch (error) {
+            console.log(`❌ Error checking auction ${i}:`, error);
+          }
+        }
+      } catch (error) {
+        console.log("⚠️ getAuctionAddress function not available, skipping individual checks");
+      }
       
       if (!allAuctions || allAuctions.length === 0) {
         console.log("No auctions returned from getAllAuctions");
@@ -160,7 +160,16 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       }
       
       const formattedAuctions: AuctionInfo[] = allAuctions.map((auction: any, index: number) => {
-        console.log(`Auction ${index}:`, auction);
+        console.log(`📋 Auction ${index}:`, auction);
+        console.log(`🔍 Auction ${index} details:`, {
+          contractAddress: auction.contractAddress || auction[0],
+          name: auction.name || auction[2],
+          description: auction.description || auction[3],
+          createdAt: auction.createdAt || auction[4],
+          endTime: auction.endTime || auction[5],
+          isActive: auction.isActive !== undefined ? auction.isActive : auction[6],
+          bidCount: auction.bidCount || auction[7]
+        });
         
         // Handle different data structures
         const contractAddress = auction.contractAddress || auction[0];
@@ -183,32 +192,32 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         };
       });
       
-      setAuctions(formattedAuctions);
-      console.log("Loaded auctions:", formattedAuctions.length);
+      // Debug: Log all contract addresses before deduplication
+      console.log("🔍 Contract addresses before deduplication:", 
+        formattedAuctions.map(a => a.contractAddress)
+      );
+      
+      // Remove duplicates based on contract address
+      const uniqueAuctions = formattedAuctions.filter((auction, index, self) => 
+        index === self.findIndex(a => a.contractAddress === auction.contractAddress)
+      );
+      
+      console.log("🔍 Before deduplication:", formattedAuctions.length);
+      console.log("✅ After deduplication:", uniqueAuctions.length);
+      console.log("🔍 Contract addresses after deduplication:", 
+        uniqueAuctions.map(a => a.contractAddress)
+      );
+      
+      setAuctions(uniqueAuctions);
+      console.log("✅ Loaded auctions from Registry:", uniqueAuctions.length);
+      console.log("📋 Final auctions list:", uniqueAuctions);
     } catch (error) {
-      console.error("Failed to load auctions from Registry:", error);
-      console.log("Falling back to localStorage due to Registry error");
-      // Fallback to localStorage on error
-      const savedAuctions = localStorage.getItem('sealed-auctions');
-      if (savedAuctions) {
-        try {
-          const parsedAuctions = JSON.parse(savedAuctions);
-          setAuctions(parsedAuctions);
-          console.log("Loaded auctions from localStorage after Registry error:", parsedAuctions.length);
-        } catch (parseError) {
-          console.error("Failed to parse saved auctions:", parseError);
-          setAuctions([]);
-        }
-      } else {
-        setAuctions([]);
-      }
+      console.error("❌ Failed to load auctions from Registry:", error);
+      setAuctions([]);
     }
   };
 
-  // Save auctions to localStorage whenever auctions change
-  useEffect(() => {
-    localStorage.setItem('sealed-auctions', JSON.stringify(auctions));
-  }, [auctions]);
+  // No localStorage - auctions are loaded from Registry only
 
   // Create new auction function
   const createNewAuction = async () => {
@@ -373,10 +382,19 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           }
           
           await tx.wait();
-          console.log("Auction registered in Registry:", tx.hash);
+          console.log("✅ Auction registered in Registry:", tx.hash);
+          console.log("⏰ Registration completed at:", new Date().toISOString());
           
-          // Reload auctions from Registry to show the new auction
-          await loadAuctionsFromRegistry();
+      // Wait a bit for transaction to be fully confirmed before reloading
+      console.log('⏳ Waiting for transaction confirmation...');
+      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
+      
+      // Reload auctions from Registry to show the new auction
+      console.log('🔄 Reloading auctions from Registry after registration...');
+      console.log("⏰ Reload started at:", new Date().toISOString());
+      await loadAuctionsFromRegistry("after-registration");
+      console.log('✅ Auctions reloaded from Registry');
+      console.log("⏰ Reload completed at:", new Date().toISOString());
           
         } catch (error: any) {
           console.error("Failed to register auction in Registry:", error);
@@ -393,19 +411,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         }
       }
 
-      // Save auction data including image to localStorage (always save, even if Registry failed)
-      const auctionData = {
-        contractAddress,
-        name: newAuctionName,
-        description: newAuctionDescription,
-        image: newAuctionImage,
-        createdAt: Date.now(),
-        endTime: Date.now() + (newAuctionDuration * 1000)
-      };
-      
-      // Save to localStorage for auction view to access
-      localStorage.setItem(`auction-${contractAddress}`, JSON.stringify(auctionData));
-      localStorage.setItem('active-contract-address', contractAddress);
+      // No localStorage - all data is on-chain via Registry contract
 
       // Add to local auctions list for immediate display
       const newAuction: AuctionInfo = {
@@ -713,24 +719,13 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>All Auctions</h2>
           <button
             onClick={() => {
-              // Load from Registry contract (primary) or localStorage (fallback)
+              // Load from Registry contract only (on-chain data)
               if (registryContract) {
-                loadAuctionsFromRegistry();
+                console.log("🔄 Refresh button clicked - loading from Registry");
+                loadAuctionsFromRegistry("refresh-button");
               } else {
-                // Fallback to localStorage if Registry contract is not available
-                const savedAuctions = localStorage.getItem('sealed-auctions');
-                if (savedAuctions) {
-                  try {
-                    const parsedAuctions = JSON.parse(savedAuctions);
-                    setAuctions(parsedAuctions);
-                    console.log("Refreshed auctions from localStorage (fallback):", parsedAuctions.length);
-                  } catch (error) {
-                    console.error("Failed to parse saved auctions:", error);
-                    setAuctions([]);
-                  }
-                } else {
-                  setAuctions([]);
-                }
+                console.log("❌ Registry contract not available");
+                setAuctions([]);
               }
             }}
             className={`${
@@ -800,7 +795,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
               
               return (
                 <div
-                  key={auction.id}
+                  key={auction.contractAddress || auction.id}
                   className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
                     isSelected 
                       ? 'border-purple-500 bg-purple-50' 
@@ -879,20 +874,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                         onClick={() => {
                           // Set this auction as active and switch to auction view
                           if (auction.contractAddress) {
-                            localStorage.setItem('active-auction', auction.id);
-                            localStorage.setItem('active-contract-address', auction.contractAddress);
-                            
-                            // Try to load auction data from localStorage
-                            const localAuctionData = localStorage.getItem(`auction-${auction.contractAddress}`);
-                            if (localAuctionData) {
-                              const auctionData = JSON.parse(localAuctionData);
-                              // Update auction item in parent component
-                              window.dispatchEvent(new CustomEvent('auction-data-loaded', {
-                                detail: auctionData
-                              }));
-                            }
-                            
-                            // Trigger a custom event to notify the parent component
+                            // Trigger a custom event to notify the parent component (on-chain only)
                             window.dispatchEvent(new CustomEvent('auction-selected', {
                               detail: {
                                 contractAddress: auction.contractAddress,
