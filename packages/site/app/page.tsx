@@ -7,6 +7,12 @@ import { useState, useEffect } from "react";
 export default function Home() {
   const { isConnected } = useMetaMaskEthersSigner();
   const [isDisconnected, setIsDisconnected] = useState<boolean>(false);
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
+  // Fix hydration mismatch
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Check if user was disconnected
   useEffect(() => {
@@ -30,6 +36,19 @@ export default function Home() {
       window.removeEventListener('wallet-disconnected', handleDisconnect);
     };
   }, []);
+
+  // Show loading state until component is mounted
+  if (!isMounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600 text-lg">Loading Sealed Auction...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 

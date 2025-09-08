@@ -160,19 +160,22 @@ export const SealedAuctionFHE = () => {
     window.addEventListener('auction-selected', handleAuctionSelected);
     window.addEventListener('auction-data-loaded', handleAuctionDataLoaded);
     
-    // Load active contract address from localStorage on mount
+    // Load active contract address from localStorage on mount (only after component is mounted)
     if (typeof window !== 'undefined') {
-      const activeContractAddress = localStorage.getItem('active-contract-address');
-      if (activeContractAddress) {
-        setCurrentContractAddress(activeContractAddress);
-        // Load auction info from Registry
-        loadAuctionInfoFromRegistry(activeContractAddress);
-      } else {
-        // If no active auction, try to load from default contract
-        if (sealedAuction.contractAddress) {
-          loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
+      // Use setTimeout to ensure this runs after hydration
+      setTimeout(() => {
+        const activeContractAddress = localStorage.getItem('active-contract-address');
+        if (activeContractAddress) {
+          setCurrentContractAddress(activeContractAddress);
+          // Load auction info from Registry
+          loadAuctionInfoFromRegistry(activeContractAddress);
+        } else {
+          // If no active auction, try to load from default contract
+          if (sealedAuction.contractAddress) {
+            loadAuctionInfoFromRegistry(sealedAuction.contractAddress);
+          }
         }
-      }
+      }, 100);
     }
 
     return () => {

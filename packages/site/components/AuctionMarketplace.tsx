@@ -245,39 +245,49 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
     setIsCreatingAuction(true);
     try {
-      // Import contract ABI from contracts folder (bytecode not available in production)
+      // Import contract ABI and bytecode from contracts folder (now has bytecode)
       const contractData = await import('../contracts/SealedAuction.json');
-      console.log("Contract data loaded:", {
-        hasAbi: !!contractData.abi,
-        abiLength: contractData.abi?.length
-      });
-      
-      // Validate contract data
       const abi = contractData.abi;
+      const bytecode = contractData.bytecode;
+      
+      console.log("Contract data loaded:", {
+        hasAbi: !!abi,
+        hasBytecode: !!bytecode,
+        abiLength: abi?.length,
+        bytecodeLength: bytecode?.length
+      });
       
       if (!abi) {
         throw new Error("Invalid contract data: missing ABI");
       }
-      
-      // For production deployment, we'll use a pre-deployed contract address
-      // since bytecode is not available in the contracts folder
-      console.log("Using pre-deployed contract approach for production");
-      
-      // Generate a unique contract address for this auction
-      const contractAddress = `0x${Math.random().toString(16).substr(2, 40)}`;
-      console.log("Generated contract address:", contractAddress);
-      
-      // Simulate contract deployment for production (since bytecode not available)
-      console.log("Simulating SealedAuction contract deployment with duration:", newAuctionDuration);
+
+      if (!bytecode) {
+        throw new Error("Invalid contract data: missing bytecode");
+      }
 
       if (!newAuctionDuration || newAuctionDuration <= 0) {
         throw new Error("Invalid auction duration");
       }
 
-      // Simulate deployment process
-      console.log("Simulating contract deployment...");
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simulate deployment time
-      console.log("Contract deployment simulation completed");
+      // Deploy real SealedAuction contract
+      console.log("Deploying SealedAuction contract with duration:", newAuctionDuration);
+      
+      const contractFactory = new ethers.ContractFactory(
+        abi,
+        bytecode,
+        ethersSigner
+      );
+
+      console.log("Deploying contract...");
+      const contract = await contractFactory.deploy(newAuctionDuration);
+      
+      console.log("Contract deployment transaction:", contract.deploymentTransaction()?.hash);
+      
+      await contract.waitForDeployment();
+      console.log("Contract deployment confirmed");
+      
+      const contractAddress = await contract.getAddress();
+      console.log("New auction deployed at:", contractAddress);
 
       // Register auction in Registry contract for cross-user sharing
       if (registryContract && ethersSigner) {
@@ -348,7 +358,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       setNewAuctionDuration(300);
       setNewAuctionImage(null);
       
-      alert(`New auction "${newAuctionName}" created successfully!\nContract Address: ${contractAddress}`);
+      alert(`New auction "${newAuctionName}" created and deployed successfully!\n\nContract Address: ${contractAddress}\n\nAuction is now live on the blockchain and visible to all users.`);
       
     } catch (error: any) {
       console.error("Failed to create auction:", error);
