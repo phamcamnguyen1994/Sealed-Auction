@@ -670,16 +670,41 @@ export const SealedAuctionFHE = () => {
 
               {/* Get Results Directly Button - Only show when auction ended */}
               {sealedAuction.state?.isEnded && (
-                <div className="text-center">
-        <button
+                <div className="text-center space-y-2">
+                  <button
                     onClick={sealedAuction.getResultsDirectly}
                     className="py-2 px-4 bg-purple-600 text-white rounded-lg font-semibold hover:bg-purple-700 transition-colors"
                   >
                     🔍 Get Results Directly
-        </button>
-                  <p className="text-xs text-gray-500 mt-1">
+                  </button>
+                  <p className="text-xs text-gray-500">
                     Bypass permission check to get results
                   </p>
+                  
+                  {sealedAuction.sellerAddress && 
+                   sealedAuction.sellerAddress.toLowerCase() === sealedAuction.ethersSigner?.address?.toLowerCase() && (
+                    <>
+                      <button
+                        onClick={sealedAuction.getBiddersFromEvents}
+                        className="py-2 px-4 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                      >
+                        📋 Get Bidders from Events
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        Seller only: Query on-chain events to see all bidders
+                      </p>
+                      
+                      <button
+                        onClick={sealedAuction.grantViewToAllBidders}
+                        className="py-2 px-4 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition-colors"
+                      >
+                        🔑 Grant View to All Bidders
+                      </button>
+                      <p className="text-xs text-gray-500">
+                        Seller only: Grant FHE decrypt permissions to all bidders (1 transaction)
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
             </div>

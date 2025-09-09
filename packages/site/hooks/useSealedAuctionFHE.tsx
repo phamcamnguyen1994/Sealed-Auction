@@ -98,6 +98,7 @@ export const useSealedAuctionFHE = (parameters: {
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
   const [blockTimestamp, setBlockTimestamp] = useState<number | undefined>(undefined);
+  const [sellerAddress, setSellerAddress] = useState<string | undefined>(undefined);
 
   const auctionRef = useRef<SealedAuctionInfoType | undefined>(undefined);
   const isRefreshingRef = useRef<boolean>(isRefreshing);
@@ -172,7 +173,7 @@ export const useSealedAuctionFHE = (parameters: {
         };
         console.log("[useSealedAuctionFHE] getState()=" + JSON.stringify(stateForLog));
         
-        // Get current block timestamp
+        // Get current block timestamp and seller address
         try {
           const block = await ethersReadonlyProvider?.getBlock('latest');
           if (block) {
@@ -182,8 +183,13 @@ export const useSealedAuctionFHE = (parameters: {
             console.log("[useSealedAuctionFHE] End time:", state._endTime.toString());
             console.log("[useSealedAuctionFHE] Time difference:", block.timestamp - Number(state._endTime));
           }
+          
+          // Get seller address
+          const seller = await thisAuctionContract.seller();
+          setSellerAddress(seller);
+          console.log("[useSealedAuctionFHE] Seller address:", seller);
         } catch (error) {
-          console.log("[useSealedAuctionFHE] Failed to get block timestamp:", error);
+          console.log("[useSealedAuctionFHE] Failed to get block timestamp or seller:", error);
         }
         
         if (
@@ -355,6 +361,25 @@ export const useSealedAuctionFHE = (parameters: {
             return;
           }
 
+          // Debug: Check permissions after placing bid
+          try {
+            const currentAddress = thisEthersSigner.address;
+            const canView = await thisAuctionContract.canViewAfterEnd(currentAddress);
+            const seller = await thisAuctionContract.seller();
+            const bids = await thisAuctionContract.bids();
+            
+            console.log("🎯 After PlaceBid Debug:", {
+              currentAddress,
+              seller,
+              isSeller: currentAddress.toLowerCase() === seller.toLowerCase(),
+              canViewAfterEnd: canView,
+              totalBids: Number(bids),
+              note: "Bidder should now have view permission"
+            });
+          } catch (debugError) {
+            console.log("❌ Debug check after placeBid failed:", debugError);
+          }
+
           refreshState();
         } catch (e) {
           setMessage(`placeBid Failed! ${e}`);
@@ -393,13 +418,12 @@ export const useSealedAuctionFHE = (parameters: {
     
     // Can finalize if:
     // 1. Auction is not already ended (ended = false)
-    // 2. Current time >= endTime (auction time has expired)
-    // Use local time as fallback, but smart contract will do the final check
+    // 2. Real time >= endTime (auction time has expired in reality)
     const currentTime = Math.floor(Date.now() / 1000);
     const endTime = Number(state._endTime);
     const timeExpired = currentTime >= endTime;
     const notAlreadyEnded = !state.isEnded;
-    
+
     console.log("[useSealedAuctionFHE] canFinalize check:", {
       currentTime,
       endTime,
@@ -407,10 +431,10 @@ export const useSealedAuctionFHE = (parameters: {
       isEnded: state.isEnded,
       notAlreadyEnded,
       result: timeExpired && notAlreadyEnded,
-      note: "Smart contract will do final timestamp check"
+      note: "Using real timestamp - auction has actually ended"
     });
     
-    // Only allow finalize if auction is not ended AND time has expired
+    // Only allow finalize if auction is not ended AND real time has expired
     return notAlreadyEnded && timeExpired;
   }, [auction.address, ethersSigner, isRefreshing, isFinalizing, state]);
 
@@ -443,21 +467,19 @@ export const useSealedAuctionFHE = (parameters: {
         !sameSigner.current(thisEthersSigner);
 
       try {
-        // Check block timestamp before finalize
-        setMessage(`Checking block timestamp...`);
-        const block = await ethersReadonlyProvider?.getBlock('latest');
-        const blockTimestamp = block?.timestamp || 0;
+        // Check real time before finalize
+        const currentTime = Math.floor(Date.now() / 1000);
         const endTime = Number(state?._endTime || 0);
         
-        console.log("[useSealedAuctionFHE] Block timestamp check:", {
-          blockTimestamp,
+        console.log("[useSealedAuctionFHE] Real time check:", {
+          currentTime,
           endTime,
-          timeExpired: blockTimestamp >= endTime,
-          localTime: Math.floor(Date.now() / 1000)
+          timeExpired: currentTime >= endTime,
+          note: "Using real timestamp - auction has actually ended"
         });
 
-        if (blockTimestamp < endTime) {
-          setMessage(`Cannot finalize: Block timestamp ${blockTimestamp} < endTime ${endTime}`);
+        if (currentTime < endTime) {
+          setMessage(`Cannot finalize: Current time ${currentTime} < endTime ${endTime}`);
           return;
         }
 
@@ -474,6 +496,27 @@ export const useSealedAuctionFHE = (parameters: {
         if (isStale()) {
           setMessage(`Ignore finalize`);
           return;
+        }
+
+        // Debug: Check permissions after finalize
+        try {
+          const currentAddress = thisEthersSigner.address;
+          const canView = await thisAuctionContract.canViewAfterEnd(currentAddress);
+          const seller = await thisAuctionContract.seller();
+          const bids = await thisAuctionContract.bids();
+          const ended = await thisAuctionContract.ended();
+          
+          console.log("🏁 After Finalize Debug:", {
+            currentAddress,
+            seller,
+            isSeller: currentAddress.toLowerCase() === seller.toLowerCase(),
+            canViewAfterEnd: canView,
+            totalBids: Number(bids),
+            auctionEnded: ended,
+            note: "Seller should now have view permission if there are bids"
+          });
+        } catch (debugError) {
+          console.log("❌ Debug check after finalize failed:", debugError);
         }
 
         // Wait a bit for blockchain to update, then refresh
@@ -530,6 +573,171 @@ export const useSealedAuctionFHE = (parameters: {
     }
   }, [auction.address, auction.abi, ethersSigner, refreshState]);
 
+  // Get all bidders from BidPlaced events
+  const getBiddersFromEvents = useCallback(async () => {
+    if (!auction.address || !ethersReadonlyProvider) {
+      return [];
+    }
+
+    try {
+      const thisAuctionContract = new ethers.Contract(
+        auction.address,
+        auction.abi,
+        ethersReadonlyProvider
+      );
+
+      // Query BidPlaced events
+      const filter = thisAuctionContract.filters.BidPlaced();
+      const events = await thisAuctionContract.queryFilter(filter);
+      
+      const bidders = events.map(event => event.args?.bidder);
+      
+      console.log("📋 Bidders from events:", {
+        totalBidders: bidders.length,
+        bidders: bidders,
+        events: events.map(e => ({
+          blockNumber: e.blockNumber,
+          transactionHash: e.transactionHash,
+          bidder: e.args?.bidder
+        }))
+      });
+      
+      return bidders;
+    } catch (error) {
+      console.log("❌ Failed to get bidders from events:", error);
+      return [];
+    }
+  }, [auction.address, auction.abi, ethersReadonlyProvider]);
+
+  // Grant view permission to all bidders (only seller can do this) - Single transaction
+  const grantViewToAllBidders = useCallback(async () => {
+    if (!auction.address || !ethersSigner) {
+      return;
+    }
+
+    const thisAuctionContract = new ethers.Contract(
+      auction.address,
+      auction.abi,
+      ethersSigner
+    );
+
+    try {
+      // Check if current user is the seller
+      const currentAddress = ethersSigner.address;
+      const seller = await thisAuctionContract.seller();
+      
+      console.log("🔍 Grant View Debug:", {
+        currentAddress,
+        seller,
+        isSeller: currentAddress.toLowerCase() === seller.toLowerCase()
+      });
+      
+      if (currentAddress.toLowerCase() !== seller.toLowerCase()) {
+        setMessage("❌ Only the seller can grant view permissions");
+        return;
+      }
+      
+      // Check if auction is finalized
+      const ended = await thisAuctionContract.ended();
+      console.log("🔍 Auction status check:", {
+        ended,
+        note: "Auction must be finalized before granting view permissions"
+      });
+      
+      if (!ended) {
+        setMessage("❌ Auction must be finalized before granting view permissions");
+        return;
+      }
+      
+      // Get all bidders from events
+      const bidders = await getBiddersFromEvents();
+      
+      if (bidders.length === 0) {
+        setMessage("No bidders found");
+        return;
+      }
+
+      console.log("🔍 About to call grantViewToAllBidders:", {
+        contractAddress: auction.address,
+        bidders: bidders,
+        biddersCount: bidders.length
+      });
+
+      // Check if function exists in contract
+      try {
+        const hasFunction = thisAuctionContract.interface.hasFunction("grantViewToAllBidders");
+        console.log("🔍 Function exists check:", {
+          hasFunction,
+          note: "grantViewToAllBidders function should exist in contract"
+        });
+        
+        if (!hasFunction) {
+          setMessage("❌ Contract does not have grantViewToAllBidders function. Please deploy new contract.");
+          return;
+        }
+      } catch (e) {
+        console.log("❌ Error checking function existence:", e);
+        setMessage("❌ Error checking contract function. Contract may not be deployed.");
+        return;
+      }
+
+      // Check FHE state before calling
+      try {
+        const bids = await thisAuctionContract.bids();
+        console.log("🔍 FHE State Check:", {
+          totalBids: Number(bids),
+          note: "FHE operations require bids > 0"
+        });
+        
+        if (Number(bids) === 0) {
+          setMessage("❌ No bids in auction. FHE operations will fail.");
+          return;
+        }
+      } catch (e) {
+        console.log("❌ Error checking bids:", e);
+        setMessage("❌ Error checking auction bids.");
+        return;
+      }
+
+      setMessage(`Granting view permission to ${bidders.length} bidders in single transaction...`);
+      
+      try {
+        // Try batch function first
+        const tx = await thisAuctionContract.grantViewToAllBidders(bidders);
+        await tx.wait();
+        
+        console.log(`✅ Granted view permission to all ${bidders.length} bidders in single transaction`);
+        setMessage(`View permission granted to all bidders successfully`);
+        refreshState(); // Refresh to get results
+      } catch (batchError) {
+        console.log("❌ Batch function failed, trying individual grants:", batchError);
+        setMessage(`Batch function failed, trying individual grants...`);
+        
+        // Fallback: Grant view to each bidder individually
+        let successCount = 0;
+        for (const bidder of bidders) {
+          try {
+            const tx = await thisAuctionContract.grantView(bidder);
+            await tx.wait();
+            successCount++;
+            console.log(`✅ Granted view permission to ${bidder}`);
+          } catch (e) {
+            console.log(`❌ Failed to grant view to ${bidder}:`, e);
+          }
+        }
+        
+        if (successCount > 0) {
+          setMessage(`View permission granted to ${successCount}/${bidders.length} bidders`);
+          refreshState();
+        } else {
+          setMessage(`Failed to grant view permissions to any bidders`);
+        }
+      }
+    } catch (e) {
+      setMessage(`Grant view to all bidders failed: ${e}`);
+    }
+  }, [auction.address, auction.abi, ethersSigner, refreshState, getBiddersFromEvents]);
+
   // Fix seller view permission (emergency function)
   const fixSellerPermission = useCallback(async () => {
     if (!auction.address || !ethersSigner) {
@@ -567,6 +775,73 @@ export const useSealedAuctionFHE = (parameters: {
 
     try {
       setMessage(`Getting results directly...`);
+      
+      // Debug: Check current user info and permissions
+      const currentAddress = ethersSigner.address;
+      const seller = await thisAuctionContract.seller();
+      const canView = await thisAuctionContract.canViewAfterEnd(currentAddress);
+      const bids = await thisAuctionContract.bids();
+      const ended = await thisAuctionContract.ended();
+      
+      // Get all bidders from events
+      const bidders = await getBiddersFromEvents();
+      const isBidder = bidders.some(bidder => bidder.toLowerCase() === currentAddress.toLowerCase());
+      
+      // Check canViewAfterEnd for each bidder
+      const bidderPermissions = await Promise.all(
+        bidders.map(async (bidder) => {
+          const canView = await thisAuctionContract.canViewAfterEnd(bidder);
+          return { bidder, canView };
+        })
+      );
+      
+      console.log("🔍 Bidder Permissions:", bidderPermissions);
+      
+      // Check if auction is actually finalized
+      const finalizeEvents = await thisAuctionContract.queryFilter(
+        thisAuctionContract.filters.Finalized()
+      );
+      
+      console.log("🏁 Finalize Events:", {
+        totalFinalizeEvents: finalizeEvents.length,
+        events: finalizeEvents.map(e => ({
+          blockNumber: e.blockNumber,
+          transactionHash: e.transactionHash,
+          seller: e.args?.seller
+        }))
+      });
+      
+      console.log("🔍 Get Results Debug Info:", {
+        currentAddress,
+        seller,
+        isSeller: currentAddress.toLowerCase() === seller.toLowerCase(),
+        canViewAfterEnd: canView,
+        totalBids: Number(bids),
+        auctionEnded: ended,
+        hasPermission: canView,
+        allBidders: bidders,
+        isBidder: isBidder,
+        expectedPermission: currentAddress.toLowerCase() === seller.toLowerCase() || isBidder
+      });
+      
+      if (!ended) {
+        setMessage("❌ Auction not ended yet, cannot get results");
+        return;
+      }
+      
+      if (!canView) {
+        console.log("❌ Permission check failed:", {
+          currentAddress,
+          seller,
+          isSeller: currentAddress.toLowerCase() === seller.toLowerCase(),
+          isBidder: isBidder,
+          canViewAfterEnd: canView,
+          allBidders: bidders,
+          note: "User should have permission but canViewAfterEnd is false"
+        });
+        setMessage("❌ No permission to view results. Only seller and bidders can view.");
+        return;
+      }
       
       // Try to call highestBidCipher directly
       const highestBid = await thisAuctionContract.highestBidCipher();
@@ -643,6 +918,7 @@ export const useSealedAuctionFHE = (parameters: {
     }
   }, [auction.address, auction.abi, ethersSigner, instance]);
 
+
   return {
     contractAddress: auction.address,
     canRefresh,
@@ -651,7 +927,9 @@ export const useSealedAuctionFHE = (parameters: {
     placeBid,
     finalize,
     grantView,
+    grantViewToAllBidders,
     fixSellerPermission,
+    getBiddersFromEvents,
     getResultsDirectly,
     refreshState,
     message,
@@ -663,6 +941,8 @@ export const useSealedAuctionFHE = (parameters: {
     isRefreshing,
     isPlacingBid,
     isFinalizing,
-    isDeployed
+    isDeployed,
+    sellerAddress,
+    ethersSigner,
   };
 };

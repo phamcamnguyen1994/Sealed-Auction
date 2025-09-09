@@ -43,6 +43,20 @@ contract SealedAuction is SepoliaConfig {
         FHE.allow(winnerEnc, viewer);
     }
 
+    /// @notice Grant view access to all bidders (seller only, after finalize)
+    function grantViewToAllBidders(address[] calldata bidders) external onlySeller {
+        require(ended, "not finalized");
+        
+        // Grant view permission to each bidder
+        for (uint i = 0; i < bidders.length; i++) {
+            address bidder = bidders[i];
+            canViewAfterEnd[bidder] = true;
+            // Allow this bidder to decrypt the final ciphertexts
+            FHE.allow(highestBidEnc, bidder);
+            FHE.allow(winnerEnc, bidder);
+        }
+    }
+
     /// @notice Place an encrypted bid (strict sealed: no feedback returned)
     function placeBid(externalEuint64 bidCt, bytes calldata inputProof) external {
         require(!ended && block.timestamp < endTime, "auction ended");

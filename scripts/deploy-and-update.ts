@@ -9,7 +9,7 @@ async function main() {
   console.log("📦 Deploying SealedAuction contract...");
   const [deployer] = await ethers.getSigners();
   const Factory = await ethers.getContractFactory("SealedAuction");
-  const auction = await Factory.connect(deployer).deploy(3600); // 1h bidding
+  const auction = await Factory.connect(deployer).deploy(3600, deployer.address); // 1h bidding, deployer as seller
   await auction.waitForDeployment();
 
   const address = await auction.getAddress();
