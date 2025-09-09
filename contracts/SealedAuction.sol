@@ -28,10 +28,10 @@ contract SealedAuction is SepoliaConfig {
         _;
     }
 
-    constructor(uint256 biddingSeconds) {
-        seller = msg.sender;
+    constructor(uint256 biddingSeconds, address _seller) {
+        seller = _seller;
         endTime = block.timestamp + biddingSeconds;
-        canViewAfterEnd[msg.sender] = true; // seller can view by default
+        canViewAfterEnd[_seller] = true; // seller can view by default
     }
 
     /// @notice Grant a viewer access to encrypted result *after* finalize.
@@ -84,9 +84,11 @@ contract SealedAuction is SepoliaConfig {
         require(!ended, "already");
         ended = true;
 
-        // Give seller ability to decrypt final values
-        FHE.allow(highestBidEnc, seller);
-        FHE.allow(winnerEnc, seller);
+        // Give seller ability to decrypt final values (only if there are bids)
+        if (bids > 0) {
+            FHE.allow(highestBidEnc, seller);
+            FHE.allow(winnerEnc, seller);
+        }
 
         emit Finalized(seller);
     }

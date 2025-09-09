@@ -30,16 +30,25 @@ type SealedAuctionInfoType = {
 };
 
 function getSealedAuctionByChainId(
-  chainId: number | undefined
+  chainId: number | undefined,
+  currentContractAddress?: string | null
 ): SealedAuctionInfoType {
-  // Check for active contract address from localStorage (only on client side)
+  // Priority: currentContractAddress > localStorage > artifact.address
   let activeContractAddress = null;
-  if (typeof window !== 'undefined') {
-    activeContractAddress = localStorage.getItem('active-contract-address');
-    console.log('[getSealedAuctionByChainId] localStorage active-contract-address:', activeContractAddress);
+  
+  // First priority: currentContractAddress from component
+  if (currentContractAddress) {
+    activeContractAddress = currentContractAddress;
+    console.log('[getSealedAuctionByChainId] Using currentContractAddress:', activeContractAddress);
+  } else {
+    // Second priority: localStorage (only on client side)
+    if (typeof window !== 'undefined') {
+      activeContractAddress = localStorage.getItem('active-contract-address');
+      console.log('[getSealedAuctionByChainId] localStorage active-contract-address:', activeContractAddress);
+    }
   }
   
-  // Use active contract address if available, otherwise fallback to artifact.address
+  // Final fallback: artifact.address
   const contractAddress = activeContractAddress || (artifact as any).address;
   console.log('[getSealedAuctionByChainId] Final contract address:', contractAddress);
   console.log('[getSealedAuctionByChainId] Artifact has address:', 'address' in artifact);
@@ -64,6 +73,7 @@ export const useSealedAuctionFHE = (parameters: {
   sameSigner: RefObject<
     (ethersSigner: ethers.JsonRpcSigner | undefined) => boolean
   >;
+  currentContractAddress?: string | null;
 }) => {
   const {
     instance,
@@ -73,6 +83,7 @@ export const useSealedAuctionFHE = (parameters: {
     ethersReadonlyProvider,
     sameChain,
     sameSigner,
+    currentContractAddress,
   } = parameters;
 
   // States
@@ -86,6 +97,7 @@ export const useSealedAuctionFHE = (parameters: {
   const [isPlacingBid, setIsPlacingBid] = useState<boolean>(false);
   const [isFinalizing, setIsFinalizing] = useState<boolean>(false);
   const [message, setMessage] = useState<string>("");
+  const [blockTimestamp, setBlockTimestamp] = useState<number | undefined>(undefined);
 
   const auctionRef = useRef<SealedAuctionInfoType | undefined>(undefined);
   const isRefreshingRef = useRef<boolean>(isRefreshing);
@@ -95,7 +107,7 @@ export const useSealedAuctionFHE = (parameters: {
 
   // Contract info
   const auction = useMemo(() => {
-    const c = getSealedAuctionByChainId(chainId);
+    const c = getSealedAuctionByChainId(chainId, currentContractAddress);
     auctionRef.current = c;
 
     if (!c.address) {
@@ -106,7 +118,7 @@ export const useSealedAuctionFHE = (parameters: {
     }
 
     return c;
-  }, [chainId]);
+  }, [chainId, currentContractAddress]);
 
   const isDeployed = useMemo(() => {
     if (!auction) {
@@ -150,7 +162,7 @@ export const useSealedAuctionFHE = (parameters: {
     // Get state first
     thisAuctionContract
       .getState()
-      .then((state) => {
+      .then(async (state) => {
         // Convert BigInt values to strings before logging
         const stateForLog = {
           isBidding: state.isBidding,
@@ -159,6 +171,20 @@ export const useSealedAuctionFHE = (parameters: {
           _bids: state._bids.toString(),
         };
         console.log("[useSealedAuctionFHE] getState()=" + JSON.stringify(stateForLog));
+        
+        // Get current block timestamp
+        try {
+          const block = await ethersReadonlyProvider?.getBlock('latest');
+          if (block) {
+            setBlockTimestamp(block.timestamp);
+            console.log("[useSealedAuctionFHE] Block timestamp:", block.timestamp);
+            console.log("[useSealedAuctionFHE] Block number:", block.number);
+            console.log("[useSealedAuctionFHE] End time:", state._endTime.toString());
+            console.log("[useSealedAuctionFHE] Time difference:", block.timestamp - Number(state._endTime));
+          }
+        } catch (error) {
+          console.log("[useSealedAuctionFHE] Failed to get block timestamp:", error);
+        }
         
         if (
           sameChain.current(thisChainId) &&
@@ -368,6 +394,7 @@ export const useSealedAuctionFHE = (parameters: {
     // Can finalize if:
     // 1. Auction is not already ended (ended = false)
     // 2. Current time >= endTime (auction time has expired)
+    // Use local time as fallback, but smart contract will do the final check
     const currentTime = Math.floor(Date.now() / 1000);
     const endTime = Number(state._endTime);
     const timeExpired = currentTime >= endTime;
@@ -379,10 +406,12 @@ export const useSealedAuctionFHE = (parameters: {
       timeExpired,
       isEnded: state.isEnded,
       notAlreadyEnded,
-      result: timeExpired && notAlreadyEnded
+      result: timeExpired && notAlreadyEnded,
+      note: "Smart contract will do final timestamp check"
     });
     
-    return timeExpired && notAlreadyEnded;
+    // Only allow finalize if auction is not ended AND time has expired
+    return notAlreadyEnded && timeExpired;
   }, [auction.address, ethersSigner, isRefreshing, isFinalizing, state]);
 
   const finalize = useCallback(() => {
@@ -414,6 +443,24 @@ export const useSealedAuctionFHE = (parameters: {
         !sameSigner.current(thisEthersSigner);
 
       try {
+        // Check block timestamp before finalize
+        setMessage(`Checking block timestamp...`);
+        const block = await ethersReadonlyProvider?.getBlock('latest');
+        const blockTimestamp = block?.timestamp || 0;
+        const endTime = Number(state?._endTime || 0);
+        
+        console.log("[useSealedAuctionFHE] Block timestamp check:", {
+          blockTimestamp,
+          endTime,
+          timeExpired: blockTimestamp >= endTime,
+          localTime: Math.floor(Date.now() / 1000)
+        });
+
+        if (blockTimestamp < endTime) {
+          setMessage(`Cannot finalize: Block timestamp ${blockTimestamp} < endTime ${endTime}`);
+          return;
+        }
+
         setMessage(`Call finalize...`);
 
         const tx: ethers.TransactionResponse = await thisAuctionContract.finalize();
@@ -429,8 +476,17 @@ export const useSealedAuctionFHE = (parameters: {
           return;
         }
 
-        refreshState();
+        // Wait a bit for blockchain to update, then refresh
+        setMessage(`Waiting for blockchain update...`);
+        setTimeout(() => {
+          refreshState();
+          // Force another refresh after a bit more time to ensure state is updated
+          setTimeout(() => {
+            refreshState();
+          }, 3000);
+        }, 2000); // Wait 2 seconds
       } catch (e) {
+        console.error("[useSealedAuctionFHE] Finalize error:", e);
         setMessage(`finalize Failed! ${e}`);
       } finally {
         isFinalizingRef.current = false;
@@ -447,6 +503,8 @@ export const useSealedAuctionFHE = (parameters: {
     refreshState,
     sameChain,
     sameSigner,
+    ethersReadonlyProvider,
+    state,
   ]);
 
   // Grant view permission (only seller can do this)

@@ -77,6 +77,7 @@ export const SealedAuctionFHE = () => {
     ethersReadonlyProvider,
     sameChain,
     sameSigner,
+    currentContractAddress, // Pass the current contract address
   });
 
   //////////////////////////////////////////////////////////////////////////////
@@ -172,7 +173,8 @@ export const SealedAuctionFHE = () => {
         auctionDescription, 
         auctionEndTime, 
         auctionCreatedAt, 
-        auctionBidCount 
+        auctionBidCount,
+        auctionSeller 
       } = event.detail;
       
       console.log('🎯 Auction selected event received:', { 
@@ -192,7 +194,8 @@ export const SealedAuctionFHE = () => {
         description: auctionDescription || "Auction created on the blockchain",
         endTime: auctionEndTime || prev.endTime,
         createdAt: auctionCreatedAt || prev.createdAt,
-        bidCount: auctionBidCount || prev.bidCount
+        bidCount: auctionBidCount || prev.bidCount,
+        seller: auctionSeller || prev.seller // Add seller from marketplace
       }));
       
       // Close marketplace and show auction details
@@ -227,40 +230,57 @@ export const SealedAuctionFHE = () => {
     };
   }, []);
 
-  // Load auction info from Registry (on-chain only)
+  // Load auction info from SealedAuction contract (real-time data)
   const loadAuctionInfoFromRegistry = async (contractAddress: string) => {
     if (!ethersReadonlyProvider) return;
     
     console.log('🔍 Loading auction info for contract:', contractAddress);
     
     try {
-      // Load from Registry contract (on-chain data only)
-      const registryData = await import('../contracts/AuctionRegistry.json');
-      const registryContract = new ethers.Contract(
-        "0xeE00ba349b4CAe6eC1a0e48e0aF6c6Bc72Ff8b65",
-        registryData.abi,
+      // Load from SealedAuction contract for real-time data
+      const auctionData = await import('../contracts/SealedAuction.json');
+      const auctionContract = new ethers.Contract(
+        contractAddress,
+        auctionData.abi,
         ethersReadonlyProvider
       );
       
-      const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
-      console.log('✅ Auction info from Registry:', auctionInfo);
+      // Get seller address from contract
+      const sellerAddress = await auctionContract.seller();
+      console.log('✅ Seller address from contract:', sellerAddress);
       
-      // Update auction item with info from Registry (only if not already set from marketplace)
-      setAuctionItem(prev => ({
-        ...prev,
-        name: prev.name || auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-        description: prev.description || auctionInfo.description || "Auction created on the blockchain",
-        seller: auctionInfo.creator || prev.seller
-      }));
-    } catch (registryError) {
-      console.log('❌ Registry not available, keeping existing auction data');
-      // Don't override existing data from marketplace
-      // Only set name if not already set
-      setAuctionItem(prev => ({
-        ...prev,
-        name: prev.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-        description: prev.description || "Auction created on the blockchain"
-      }));
+      // Try to get additional info from Registry if available
+      try {
+        const registryData = await import('../contracts/AuctionRegistry.json');
+        const registryContract = new ethers.Contract(
+          "0xeE00ba349b4CAe6eC1a0e48e0aF6c6Bc72Ff8b65",
+          registryData.abi,
+          ethersReadonlyProvider
+        );
+        
+        const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
+        console.log('✅ Auction info from Registry:', auctionInfo);
+        
+        // Update auction item with info from both sources
+        setAuctionItem(prev => ({
+          ...prev,
+          name: prev.name || auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+          description: prev.description || auctionInfo.description || "Auction created on the blockchain",
+          seller: prev.seller || auctionInfo.creator || sellerAddress // Keep marketplace data first, then registry, then contract
+        }));
+      } catch (registryError) {
+        console.log('⚠️ Registry not available, using contract data only');
+        // Update with contract data only
+        setAuctionItem(prev => ({
+          ...prev,
+          name: prev.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+          description: prev.description || "Auction created on the blockchain",
+          seller: prev.seller || sellerAddress // Keep marketplace data first, then contract
+        }));
+      }
+    } catch (error) {
+      console.log('❌ Could not load auction info:', error);
+      // Keep existing data
     }
   };
 
@@ -485,6 +505,13 @@ export const SealedAuctionFHE = () => {
                     "Loading..."
                 }
               </div>
+              <div className={`text-xs ${getTextSecondary()}`}>
+                <span className="font-medium">Contract:</span> {
+                  currentContractAddress ? 
+                    `${currentContractAddress.slice(0, 6)}...${currentContractAddress.slice(-4)}` :
+                    "Loading..."
+                }
+              </div>
             </div>
             
             <div>
@@ -504,15 +531,25 @@ export const SealedAuctionFHE = () => {
                     'border-blue-200'
                   } shadow-sm hover:shadow-md transition-shadow`}>
                     <div className="text-2xl mb-2">
-                      {sealedAuction.state.isBidding ? '🟢' : sealedAuction.state.isEnded ? '🔴' : '🟠'}
+                      {(() => {
+                        if (sealedAuction.state.isEnded) return '🔴';
+                        if (sealedAuction.blockTimestamp && Number(sealedAuction.state._endTime) <= sealedAuction.blockTimestamp) return '🟠';
+                        return '🟢';
+                      })()}
                     </div>
                     <div className={`text-xs ${getTextMuted()} font-medium uppercase tracking-wide`}>Status</div>
                     <div className={`text-sm font-bold mt-1 ${
-                      sealedAuction.state.isBidding ? 'text-green-600' : 
-                      sealedAuction.state.isEnded ? 'text-red-600' : 'text-orange-600'
+                      (() => {
+                        if (sealedAuction.state.isEnded) return 'text-red-600';
+                        if (sealedAuction.blockTimestamp && Number(sealedAuction.state._endTime) <= sealedAuction.blockTimestamp) return 'text-orange-600';
+                        return 'text-green-600';
+                      })()
                     }`}>
-                      {sealedAuction.state.isBidding ? 'Active' : 
-                       sealedAuction.state.isEnded ? 'Ended' : 'Expired'}
+                      {(() => {
+                        if (sealedAuction.state.isEnded) return 'Ended';
+                        if (sealedAuction.blockTimestamp && Number(sealedAuction.state._endTime) <= sealedAuction.blockTimestamp) return 'Expired';
+                        return 'Active';
+                      })()}
                     </div>
                   </div>
 
@@ -525,11 +562,20 @@ export const SealedAuctionFHE = () => {
                     <div className="text-2xl mb-2">⏰</div>
                     <div className={`text-xs ${getTextMuted()} font-medium uppercase tracking-wide`}>Time Left</div>
                     <div className={`text-sm font-bold mt-1 ${
-                      sealedAuction.state.isBidding ? 'text-green-600' : 'text-red-600'
+                      (() => {
+                        if (sealedAuction.state.isEnded) return 'text-red-600';
+                        if (sealedAuction.blockTimestamp && Number(sealedAuction.state._endTime) <= sealedAuction.blockTimestamp) return 'text-red-600';
+                        return 'text-green-600';
+                      })()
                     }`}>
-                      {sealedAuction.state.isBidding ? 
-                        `${Math.max(0, Math.floor((Number(sealedAuction.state._endTime) - Date.now()/1000) / 60))} min` : 
-                        sealedAuction.state.isEnded ? "Ended" : "Expired"}
+                      {(() => {
+                        if (sealedAuction.state.isEnded) return "Ended";
+                        if (sealedAuction.blockTimestamp) {
+                          const timeLeft = Math.max(0, Math.floor((Number(sealedAuction.state._endTime) - sealedAuction.blockTimestamp) / 60));
+                          return timeLeft > 0 ? `${timeLeft} min` : "Expired";
+                        }
+                        return "Loading...";
+                      })()}
                     </div>
                   </div>
 
@@ -616,7 +662,9 @@ export const SealedAuctionFHE = () => {
                     ? "🏁 Finalize"
                     : sealedAuction.isFinalizing
                       ? "⏳ Finalizing..."
-                      : "❌ Cannot finalize"}
+                      : sealedAuction.state?.isEnded
+                        ? "✅ Finalized"
+                        : "❌ Cannot finalize"}
         </button>
               </div>
 

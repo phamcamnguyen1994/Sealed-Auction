@@ -16,6 +16,8 @@ interface AuctionInfo {
   bidCount: number;
   highestBid?: string;
   winner?: string;
+  seller?: string;
+  creator?: string;
 }
 
 interface AuctionMarketplaceProps {
@@ -159,38 +161,68 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         return;
       }
       
-      const formattedAuctions: AuctionInfo[] = allAuctions.map((auction: any, index: number) => {
-        console.log(`📋 Auction ${index}:`, auction);
-        console.log(`🔍 Auction ${index} details:`, {
-          contractAddress: auction.contractAddress || auction[0],
-          name: auction.name || auction[2],
-          description: auction.description || auction[3],
-          createdAt: auction.createdAt || auction[4],
-          endTime: auction.endTime || auction[5],
-          isActive: auction.isActive !== undefined ? auction.isActive : auction[6],
-          bidCount: auction.bidCount || auction[7]
-        });
-        
-        // Handle different data structures
-        const contractAddress = auction.contractAddress || auction[0];
-        const name = auction.name || auction[2] || `Auction ${index + 1}`;
-        const description = auction.description || auction[3] || '';
-        const createdAt = Number(auction.createdAt || auction[4]) * 1000;
-        const endTime = Number(auction.endTime || auction[5]) * 1000;
-        const isActive = auction.isActive !== undefined ? auction.isActive : auction[6];
-        const bidCount = Number(auction.bidCount || auction[7] || 0);
-        
-        return {
-          id: contractAddress || `auction-${index}`,
-          contractAddress: contractAddress || '',
-          name: name,
-          description: description,
-          createdAt: createdAt,
-          endTime: endTime,
-          status: isActive && endTime > Date.now() ? 'active' : 'ended',
-          bidCount: bidCount
-        };
-      });
+      const formattedAuctions: AuctionInfo[] = await Promise.all(
+        allAuctions.map(async (auction: any, index: number) => {
+          console.log(`📋 Auction ${index}:`, auction);
+          
+          // Handle different data structures
+          const contractAddress = auction.contractAddress || auction[0];
+          const name = auction.name || auction[2] || `Auction ${index + 1}`;
+          const description = auction.description || auction[3] || '';
+          const createdAt = Number(auction.createdAt || auction[4]) * 1000;
+          
+          // Load real-time data from SealedAuction contract
+          let endTime = Number(auction.endTime || auction[5]) * 1000;
+          let bidCount = Number(auction.bidCount || auction[7] || 0);
+          let isActive = auction.isActive !== undefined ? auction.isActive : auction[6];
+          let realSeller = auction.creator || auction[1] || ''; // Default to Registry creator
+          
+          if (contractAddress && ethersReadonlyProvider) {
+            try {
+              // Load SealedAuction contract data
+              const auctionData = await import('../contracts/SealedAuction.json');
+              const auctionContract = new ethers.Contract(
+                contractAddress,
+                auctionData.abi,
+                ethersReadonlyProvider
+              );
+              
+              // Get real-time state from contract
+              const state = await auctionContract.getState();
+              endTime = Number(state._endTime) * 1000;
+              bidCount = Number(state._bids);
+              isActive = !state.isEnded && endTime > Date.now();
+              
+              // Get real seller from SealedAuction contract
+              const seller = await auctionContract.seller();
+              realSeller = seller;
+              
+              console.log(`🔍 Real-time data for ${contractAddress}:`, {
+                endTime: new Date(endTime).toLocaleString(),
+                bidCount,
+                isActive,
+                isEnded: state.isEnded,
+                realSeller: seller
+              });
+            } catch (error) {
+              console.log(`⚠️ Could not load real-time data for ${contractAddress}:`, error);
+            }
+          }
+          
+          return {
+            id: contractAddress || `auction-${index}`,
+            contractAddress: contractAddress || '',
+            name: name,
+            description: description,
+            createdAt: createdAt,
+            endTime: endTime,
+            status: isActive ? 'active' : 'ended',
+            bidCount: bidCount,
+            seller: realSeller, // Use real seller from SealedAuction contract
+            creator: realSeller // Also add as creator
+          };
+        })
+      );
       
       // Debug: Log all contract addresses before deduplication
       console.log("🔍 Contract addresses before deduplication:", 
@@ -254,10 +286,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
     setIsCreatingAuction(true);
     try {
-      // Import contract ABI and bytecode from contracts folder (now has bytecode)
-      const contractData = await import('../contracts/SealedAuction.json');
-      const abi = contractData.abi;
-      const bytecode = contractData.bytecode;
+      // Import AuctionFactory ABI and bytecode for single-transaction creation
+      const factoryData = await import('../contracts/AuctionFactory.json');
+      const abi = factoryData.abi;
+      const bytecode = factoryData.bytecode;
+      const factoryAddress = factoryData.address;
       
       console.log("Contract data loaded:", {
         hasAbi: !!abi,
@@ -278,30 +311,35 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         throw new Error("Invalid auction duration");
       }
 
-      // Deploy real SealedAuction contract with retry logic for nonce issues
-      console.log("Deploying SealedAuction contract with duration:", newAuctionDuration);
+      // Use AuctionFactory to create auction and register in one transaction
+      console.log("Creating auction using AuctionFactory with duration:", newAuctionDuration);
+      console.log("📍 Factory address:", factoryAddress);
       
-      const contractFactory = new ethers.ContractFactory(
+      const factoryContract = new ethers.Contract(
+        factoryAddress,
         abi,
-        bytecode,
         ethersSigner
       );
 
-      console.log("Deploying contract...");
+      console.log("Creating auction via factory...");
       
       // Retry logic for nonce issues
-      let contract;
+      let tx;
       let retryCount = 0;
       const maxRetries = 3;
       let lastError: any = null;
       
       while (retryCount < maxRetries) {
         try {
-          contract = await contractFactory.deploy(newAuctionDuration);
+          tx = await factoryContract.createAuction(
+            newAuctionDuration,
+            newAuctionName,
+            newAuctionDescription
+          );
           break; // Success, exit retry loop
         } catch (error: any) {
           lastError = error;
-          console.log(`Deploy attempt ${retryCount + 1} failed:`, {
+          console.log(`Create auction attempt ${retryCount + 1} failed:`, {
             code: error.code,
             message: error.message,
             reason: error.reason
@@ -318,98 +356,46 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         }
       }
       
-      if (!contract) {
+      if (!tx) {
         const errorMessage = lastError 
-          ? `Failed to deploy contract after ${maxRetries} retries. Last error: ${lastError.message || lastError.reason || 'Unknown error'}`
-          : `Failed to deploy contract after ${maxRetries} retries`;
+          ? `Failed to create auction after ${maxRetries} retries. Last error: ${lastError.message || lastError.reason || 'Unknown error'}`
+          : `Failed to create auction after ${maxRetries} retries`;
         throw new Error(errorMessage);
       }
       
-      console.log("Contract deployment transaction:", contract.deploymentTransaction()?.hash);
+      console.log("Auction creation transaction:", tx.hash);
       
-      await contract.waitForDeployment();
-      console.log("Contract deployment confirmed");
+      const receipt = await tx.wait();
+      console.log("Auction creation confirmed");
       
-      const contractAddress = await contract.getAddress();
-      console.log("New auction deployed at:", contractAddress);
-
-      // Register auction in Registry contract for cross-user sharing
-      if (registryContract && ethersSigner) {
+      // Get auction address from event
+      const event = receipt.logs.find(log => {
         try {
-          console.log("Registering auction in Registry...");
-          const registryWithSigner = registryContract.connect(ethersSigner) as any;
-          const endTime = Math.floor((Date.now() + (newAuctionDuration * 1000)) / 1000); // Convert to seconds
-          
-          // Retry logic for Registry registration nonce issues
-          let tx;
-          let registryRetryCount = 0;
-          const maxRegistryRetries = 3;
-          let lastRegistryError: any = null;
-          
-          while (registryRetryCount < maxRegistryRetries) {
-            try {
-              tx = await registryWithSigner.registerAuction(
-                contractAddress,
-                newAuctionName,
-                newAuctionDescription,
-                endTime
-              );
-              break; // Success, exit retry loop
-            } catch (error: any) {
-              lastRegistryError = error;
-              console.log(`Registry registration attempt ${registryRetryCount + 1} failed:`, {
-                code: error.code,
-                message: error.message,
-                reason: error.reason
-              });
-              
-              if (error.code === 'NONCE_EXPIRED' || error.message?.includes('nonce')) {
-                registryRetryCount++;
-                console.log(`Registry nonce error, retrying... (${registryRetryCount}/${maxRegistryRetries})`);
-                // Wait a bit before retry
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                continue;
-              }
-              throw error; // Re-throw if it's not a nonce error
-            }
-          }
-          
-          if (!tx) {
-            const errorMessage = lastRegistryError 
-              ? `Failed to register auction in Registry after ${maxRegistryRetries} retries. Last error: ${lastRegistryError.message || lastRegistryError.reason || 'Unknown error'}`
-              : `Failed to register auction in Registry after ${maxRegistryRetries} retries`;
-            throw new Error(errorMessage);
-          }
-          
-          await tx.wait();
-          console.log("✅ Auction registered in Registry:", tx.hash);
-          console.log("⏰ Registration completed at:", new Date().toISOString());
-          
-      // Wait a bit for transaction to be fully confirmed before reloading
-      console.log('⏳ Waiting for transaction confirmation...');
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds
-      
-      // Reload auctions from Registry to show the new auction
-      console.log('🔄 Reloading auctions from Registry after registration...');
-      console.log("⏰ Reload started at:", new Date().toISOString());
-      await loadAuctionsFromRegistry("after-registration");
-      console.log('✅ Auctions reloaded from Registry');
-      console.log("⏰ Reload completed at:", new Date().toISOString());
-          
-        } catch (error: any) {
-          console.error("Failed to register auction in Registry:", error);
-          console.error("Error details:", {
-            message: error?.message,
-            code: error?.code,
-            reason: error?.reason,
-            data: error?.data
-          });
-          
-          // Show more detailed error message
-          const errorMsg = error?.message || error?.reason || "Unknown error";
-          alert(`⚠️ Auction created successfully but failed to register in marketplace.\n\nContract Address: ${contractAddress}\nError: ${errorMsg}\n\n✅ Your auction is still functional and saved locally.\n❌ Other users may not see it in the marketplace.\n\nPlease try refreshing the page or contact support if the issue persists.`);
+          const parsed = factoryContract.interface.parseLog(log);
+          return parsed?.name === 'AuctionCreated';
+        } catch {
+          return false;
         }
+      });
+      
+      if (!event) {
+        throw new Error("Could not find AuctionCreated event");
       }
+      
+      const parsedEvent = factoryContract.interface.parseLog(event);
+      const contractAddress = parsedEvent?.args.auctionAddress;
+      console.log("New auction created at:", contractAddress);
+
+      // Auction is automatically registered by AuctionFactory
+      console.log("✅ Auction created and registered in one transaction!");
+      console.log("⏰ Creation completed at:", new Date().toISOString());
+      
+      // Reload auctions from Registry after successful creation
+      console.log("🔄 Reloading auctions from Registry after creation...");
+      console.log("⏰ Reload started at:", new Date().toISOString());
+      await loadAuctionsFromRegistry("after-creation");
+      console.log("✅ Auctions reloaded from Registry");
+      console.log("⏰ Reload completed at:", new Date().toISOString());
 
       // No localStorage - all data is on-chain via Registry contract
 
@@ -433,7 +419,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       setNewAuctionDuration(300);
       setNewAuctionImage(null);
       
-      alert(`New auction "${newAuctionName}" created and deployed successfully!\n\nContract Address: ${contractAddress}\n\nAuction is now live on the blockchain and visible to all users.`);
+      alert(`🎉 New auction "${newAuctionName}" created successfully!\n\n📍 Contract Address: ${contractAddress}\n✅ Created and registered in ONE transaction!\n\n🚀 Auction is now live on the blockchain and visible to all users.`);
       
     } catch (error: any) {
       console.error("Failed to create auction:", error);
@@ -789,13 +775,13 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAuctions.map((auction) => {
+            {filteredAuctions.map((auction, index) => {
               const status = getAuctionStatus(auction);
               const isSelected = selectedAuction === auction.id;
               
               return (
                 <div
-                  key={auction.contractAddress || auction.id}
+                  key={`${auction.contractAddress}-${index}`}
                   className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
                     isSelected 
                       ? 'border-purple-500 bg-purple-50' 
@@ -883,7 +869,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                                 auctionDescription: auction.description,
                                 auctionEndTime: auction.endTime,
                                 auctionCreatedAt: auction.createdAt,
-                                auctionBidCount: auction.bidCount
+                                auctionBidCount: auction.bidCount,
+                                auctionSeller: auction.seller || auction.creator // Add seller info
                               }
                             }));
                           } else {

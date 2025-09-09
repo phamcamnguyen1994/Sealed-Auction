@@ -76,6 +76,45 @@ contract AuctionRegistry {
     }
     
     /**
+     * @dev Register a new auction with specific creator (for Factory)
+     * @param contractAddress The address of the SealedAuction contract
+     * @param creator The actual creator of the auction
+     * @param name The name of the auction
+     * @param description The description of the auction
+     * @param endTime The end time of the auction
+     */
+    function registerAuctionWithCreator(
+        address contractAddress,
+        address creator,
+        string memory name,
+        string memory description,
+        uint256 endTime
+    ) external {
+        require(contractAddress != address(0), "Invalid contract address");
+        require(creator != address(0), "Invalid creator address");
+        require(!isRegistered[contractAddress], "Auction already registered");
+        require(endTime > block.timestamp, "Invalid end time");
+        
+        AuctionInfo memory newAuction = AuctionInfo({
+            contractAddress: contractAddress,
+            creator: creator, // Use the provided creator address
+            name: name,
+            description: description,
+            createdAt: block.timestamp,
+            endTime: endTime,
+            isActive: true,
+            bidCount: 0
+        });
+        
+        auctions.push(newAuction);
+        auctionIndex[contractAddress] = auctions.length - 1;
+        isRegistered[contractAddress] = true;
+        
+        emit AuctionRegistered(contractAddress, creator, name, block.timestamp);
+    }
+    
+    
+    /**
      * @dev Update auction information (bid count, active status)
      * @param contractAddress The address of the SealedAuction contract
      * @param bidCount The current bid count
