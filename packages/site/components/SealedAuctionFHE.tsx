@@ -177,14 +177,16 @@ export const SealedAuctionFHE = () => {
         auctionEndTime, 
         auctionCreatedAt, 
         auctionBidCount,
-        auctionSeller 
+        auctionSeller,
+        autoRefresh 
       } = event.detail;
       
       console.log('🎯 Auction selected event received:', { 
         contractAddress, 
         auctionId, 
         auctionName, 
-        auctionDescription 
+        auctionDescription,
+        autoRefresh 
       });
       console.log('🎯 Setting current contract address to:', contractAddress);
       
@@ -206,6 +208,17 @@ export const SealedAuctionFHE = () => {
       
       // Still try to load additional info from Registry (on-chain only)
       loadAuctionInfoFromRegistry(contractAddress);
+      
+      // Auto-refresh if requested
+      if (autoRefresh) {
+        console.log('🔄 Auto-refresh triggered after auction selection');
+        // Delay auto-refresh to allow component to mount first
+        setTimeout(() => {
+          console.log('🔄 Executing auto-refresh...');
+          // Trigger refresh by dispatching a custom event
+          window.dispatchEvent(new CustomEvent('trigger-refresh'));
+        }, 1500); // 1.5 second delay to ensure component is ready
+      }
     };
 
     const handleAuctionDataLoaded = (event: any) => {
@@ -221,8 +234,17 @@ export const SealedAuctionFHE = () => {
       }));
     };
 
+    const handleTriggerRefresh = () => {
+      console.log('🔄 Trigger refresh event received');
+      if (sealedAuction.refreshState) {
+        console.log('🔄 Executing refresh...');
+        sealedAuction.refreshState();
+      }
+    };
+
     window.addEventListener('auction-selected', handleAuctionSelected);
     window.addEventListener('auction-data-loaded', handleAuctionDataLoaded);
+    window.addEventListener('trigger-refresh', handleTriggerRefresh);
     
     // No localStorage - only load from Registry when auction is selected
     console.log('🔄 Component mounted, waiting for auction selection...');
@@ -230,8 +252,9 @@ export const SealedAuctionFHE = () => {
     return () => {
       window.removeEventListener('auction-selected', handleAuctionSelected);
       window.removeEventListener('auction-data-loaded', handleAuctionDataLoaded);
+      window.removeEventListener('trigger-refresh', handleTriggerRefresh);
     };
-  }, []);
+  }, [sealedAuction]);
 
   // Load auction info from SealedAuction contract (real-time data)
   const loadAuctionInfoFromRegistry = async (contractAddress: string) => {
@@ -311,7 +334,7 @@ export const SealedAuctionFHE = () => {
   // Theme-aware styling functions
   const getCardBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-gray-900/95 backdrop-blur-sm border border-gray-800';
+      case 'dark': return 'bg-green-900/95 backdrop-blur-sm border border-green-800';
       case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
       default: return 'bg-white/95 backdrop-blur-sm';
     }
@@ -319,7 +342,7 @@ export const SealedAuctionFHE = () => {
   
   const getCardBorder = () => {
     switch (theme) {
-      case 'dark': return 'border-gray-700';
+      case 'dark': return 'border-green-700';
       case 'orange': return 'border-orange-200';
       default: return 'border-gray-200';
     }
@@ -327,7 +350,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextPrimary = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-100';
+      case 'dark': return 'text-green-100';
       case 'orange': return 'text-orange-900';
       default: return 'text-gray-900';
     }
@@ -335,7 +358,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextSecondary = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-300';
+      case 'dark': return 'text-green-200';
       case 'orange': return 'text-orange-700';
       default: return 'text-gray-600';
     }
@@ -343,7 +366,7 @@ export const SealedAuctionFHE = () => {
   
   const getTextMuted = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-400';
+      case 'dark': return 'text-green-300';
       case 'orange': return 'text-orange-600';
       default: return 'text-gray-500';
     }
@@ -351,7 +374,7 @@ export const SealedAuctionFHE = () => {
   
   const getInputBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400';
+      case 'dark': return 'bg-green-800 border-green-600 text-green-100 placeholder-green-400';
       case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
       default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
     }
@@ -359,15 +382,15 @@ export const SealedAuctionFHE = () => {
 
   return (
     <div className={`grid w-full gap-4 transition-colors duration-300 ${
-      theme === 'dark' ? 'bg-gray-950' : 
+      theme === 'dark' ? 'bg-gradient-to-br from-green-950 to-emerald-900' : 
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
       'bg-gray-50'
     }`}>
       <div className={`col-span-full mx-8 bg-gradient-to-r ${
-        theme === 'dark' ? 'from-gray-800 to-gray-900' : 
+        theme === 'dark' ? 'from-green-800 to-emerald-700' : 
         theme === 'orange' ? 'from-orange-500 to-amber-600' : 
         'from-purple-600 to-blue-600'
-      } text-white rounded-xl shadow-lg border border-gray-700`}>
+      } text-white rounded-xl shadow-lg border border-green-700`}>
         <div className="px-8 py-6">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -402,10 +425,6 @@ export const SealedAuctionFHE = () => {
                 <span>🏪</span>
                 <span>{showMarketplace ? 'Hide' : 'Browse'} Marketplace</span>
               </button>
-              <div className="text-right">
-                <div className="text-sm text-blue-200 mb-1">Powered by</div>
-                <div className="text-lg font-semibold">Zama FHEVM</div>
-              </div>
             </div>
           </div>
           
@@ -464,11 +483,23 @@ export const SealedAuctionFHE = () => {
 
 
       {/* Auction Info Display */}
-      <div className="col-span-full mx-8 px-6 py-6 rounded-xl bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200 shadow-lg">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className={`col-span-full mx-4 px-8 py-8 rounded-xl border-2 shadow-lg transition-all duration-300 ${
+        theme === 'dark' 
+          ? 'bg-gradient-to-br from-green-800 to-emerald-700 border-green-600' 
+          : theme === 'orange'
+          ? 'bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300'
+          : 'bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200'
+      }`}>
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
           {/* Auction Image */}
           <div className="relative">
-            <div className="aspect-square bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl border-2 border-gray-300 overflow-hidden">
+            <div className={`aspect-square rounded-xl border-2 overflow-hidden transition-all duration-300 ${
+              theme === 'dark' 
+                ? 'bg-gradient-to-br from-green-700 to-emerald-600 border-green-500' 
+                : theme === 'orange'
+                ? 'bg-gradient-to-br from-orange-100 to-orange-200 border-orange-300'
+                : 'bg-gradient-to-br from-gray-100 to-gray-200 border-gray-300'
+            }`}>
               {auctionItem.image ? (
                 <img 
                   src={auctionItem.image} 
@@ -488,7 +519,7 @@ export const SealedAuctionFHE = () => {
           </div>
 
           {/* Auction Details */}
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div>
               <h3 className={`text-2xl font-bold mb-2 ${getTextPrimary()}`}>{auctionItem.name}</h3>
               <div className="flex items-center gap-2 mb-2">
@@ -523,12 +554,30 @@ export const SealedAuctionFHE = () => {
               
               {/* Welcome message when no auction is selected */}
               {!currentContractAddress && (
-                <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-xl shadow-sm animate-fade-in-up delay-300">
-                  <div className="flex items-center space-x-3 text-blue-800">
+                <div className={`mt-4 p-4 rounded-xl shadow-sm animate-fade-in-up delay-300 border transition-all duration-300 ${
+                  theme === 'dark' 
+                    ? 'bg-gradient-to-r from-green-700 to-emerald-600 border-green-500' 
+                    : theme === 'orange'
+                    ? 'bg-gradient-to-r from-orange-100 to-orange-200 border-orange-300'
+                    : 'bg-gradient-to-r from-blue-50 to-purple-50 border-blue-200'
+                }`}>
+                  <div className={`flex items-center space-x-3 ${
+                    theme === 'dark' ? 'text-gray-200' : 
+                    theme === 'orange' ? 'text-orange-800' : 
+                    'text-blue-800'
+                  }`}>
                     <span className="text-3xl animate-bounce">👋</span>
                     <div>
-                      <h5 className="font-semibold text-lg">Welcome to Sealed Auction!</h5>
-                      <p className="text-sm text-blue-600">
+                      <h5 className={`font-semibold text-lg ${
+                        theme === 'dark' ? 'text-gray-100' : 
+                        theme === 'orange' ? 'text-orange-900' : 
+                        'text-blue-900'
+                      }`}>Welcome to Sealed Auction!</h5>
+                      <p className={`text-sm ${
+                        theme === 'dark' ? 'text-gray-300' : 
+                        theme === 'orange' ? 'text-orange-700' : 
+                        'text-blue-600'
+                      }`}>
                         Click "Browse Marketplace" above to explore available auctions and start bidding.
                       </p>
                     </div>
@@ -541,10 +590,10 @@ export const SealedAuctionFHE = () => {
             {sealedAuction.state && (
               <div className="mb-6">
                 <h4 className={`font-semibold mb-4 text-lg ${getTextPrimary()} animate-fade-in-up`}>📊 Auction Status</h4>
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-3 gap-6">
                   {/* Status */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-gray-600' : 
+                    theme === 'dark' ? 'border-green-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-fade-in-up delay-100`}>
@@ -573,7 +622,7 @@ export const SealedAuctionFHE = () => {
 
                   {/* Time Left */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-gray-600' : 
+                    theme === 'dark' ? 'border-green-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-fade-in-up delay-200`}>
@@ -599,7 +648,7 @@ export const SealedAuctionFHE = () => {
 
                   {/* Total Bids */}
                   <div className={`text-center p-4 ${getCardBg()} rounded-lg border-2 ${
-                    theme === 'dark' ? 'border-gray-600' : 
+                    theme === 'dark' ? 'border-green-600' : 
                     theme === 'orange' ? 'border-orange-300' :
                     'border-blue-200'
                   } shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-fade-in-up delay-300`}>
@@ -613,7 +662,7 @@ export const SealedAuctionFHE = () => {
 
 
             {/* Bidding Controls */}
-            <div className="mt-6 space-y-4 animate-fade-in-up delay-400">
+            <div className="mt-8 space-y-6 animate-fade-in-up delay-400">
               {/* Bid Amount Input */}
               <div>
                 <label className={`block text-sm font-medium mb-2 ${getTextSecondary()}`}>
@@ -632,7 +681,7 @@ export const SealedAuctionFHE = () => {
 
               {/* Action Buttons - Only show when auction is selected */}
               {currentContractAddress && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 animate-fade-in-up delay-500">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up delay-500">
                 {/* Refresh Button */}
         <button
                   className={`py-2 px-4 rounded-lg font-semibold transition-all duration-300 ${

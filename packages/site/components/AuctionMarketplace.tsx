@@ -533,7 +533,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   // Theme-aware styling functions
   const getCardBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-gray-900/95 backdrop-blur-sm border border-gray-800';
+      case 'dark': return 'bg-green-900/95 backdrop-blur-sm border border-green-800';
       case 'orange': return 'bg-orange-50/95 backdrop-blur-sm';
       default: return 'bg-white/95 backdrop-blur-sm';
     }
@@ -541,7 +541,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getCardBorder = () => {
     switch (theme) {
-      case 'dark': return 'border-gray-700';
+      case 'dark': return 'border-green-700';
       case 'orange': return 'border-orange-200';
       default: return 'border-gray-200';
     }
@@ -549,7 +549,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextPrimary = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-100';
+      case 'dark': return 'text-green-100';
       case 'orange': return 'text-orange-900';
       default: return 'text-gray-900';
     }
@@ -557,7 +557,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextSecondary = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-300';
+      case 'dark': return 'text-green-200';
       case 'orange': return 'text-orange-700';
       default: return 'text-gray-600';
     }
@@ -565,7 +565,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getTextMuted = () => {
     switch (theme) {
-      case 'dark': return 'text-gray-400';
+      case 'dark': return 'text-green-300';
       case 'orange': return 'text-orange-600';
       default: return 'text-gray-500';
     }
@@ -573,7 +573,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   
   const getInputBg = () => {
     switch (theme) {
-      case 'dark': return 'bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400';
+      case 'dark': return 'bg-green-800 border-green-600 text-green-100 placeholder-green-400';
       case 'orange': return 'bg-orange-100 border-orange-300 text-orange-900 placeholder-orange-500';
       default: return 'bg-white border-gray-300 text-gray-900 placeholder-gray-500';
     }
@@ -581,7 +581,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
 
   return (
     <div className={`w-full mx-8 p-6 transition-colors duration-300 relative overflow-hidden ${
-      theme === 'dark' ? 'bg-gray-950' : 
+      theme === 'dark' ? 'bg-gradient-to-br from-green-950 to-emerald-900' : 
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
       'bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30'
     }`}>
@@ -603,18 +603,18 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           <button
             onClick={toggleTheme}
             className={`${
-              theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
+              theme === 'dark' ? 'bg-green-800/50 backdrop-blur-sm text-green-100 border border-green-600' : 
               theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
               'bg-gray-800 text-white border border-gray-600'
             } px-4 py-2 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:scale-105 hover:shadow-xl animate-fade-in-right delay-100`}
-            title={`Current: ${theme.charAt(0).toUpperCase() + theme.slice(1)} - Click to cycle themes`}
+            title={`Current: ${theme === 'dark' ? 'Forest' : theme.charAt(0).toUpperCase() + theme.slice(1)} - Click to cycle themes`}
           >
             <span>{
-              theme === 'dark' ? '🌙' : 
+              theme === 'dark' ? '🌲' : 
               theme === 'orange' ? '🧡' : 
               '☀️'
             }</span>
-            <span className="hidden md:inline">{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
+            <span className="hidden md:inline">{theme === 'dark' ? 'Forest' : theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
           </button>
         </div>
         <p className={`text-xl ${getTextSecondary()} mb-2 animate-fade-in-up delay-200`}>Create and participate in confidential sealed auctions</p>
@@ -720,7 +720,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
               onClick={createNewAuction}
               disabled={isCreatingAuction || !newAuctionName.trim()}
               className={`mt-4 ${
-                theme === 'dark' ? 'bg-gradient-to-r from-gray-700 to-gray-800 text-gray-100 hover:from-gray-600 hover:to-gray-700' :
+                theme === 'dark' ? 'bg-gradient-to-r from-green-700 to-emerald-800 text-green-100 hover:from-green-600 hover:to-emerald-700' :
                 theme === 'orange' ? 'bg-gradient-to-r from-orange-500 to-amber-600 text-white hover:from-orange-600 hover:to-amber-700' :
                 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700'
               } px-6 py-3 rounded-lg font-semibold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center space-x-2`}
@@ -928,7 +928,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                                 auctionEndTime: auction.endTime,
                                 auctionCreatedAt: auction.createdAt,
                                 auctionBidCount: auction.bidCount,
-                                auctionSeller: auction.seller || auction.creator // Add seller info
+                                auctionSeller: auction.seller || auction.creator, // Add seller info
+                                autoRefresh: true // Flag to trigger auto-refresh
                               }
                             }));
                           } else {
