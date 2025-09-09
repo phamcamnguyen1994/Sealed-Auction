@@ -41,8 +41,8 @@ export const Header = () => {
             <Image
               src="/zama-logo.svg"
               alt="Zama Logo"
-              width={80}
-              height={80}
+              width={200}
+              height={150}
               className="hover:scale-105 transition-transform duration-300"
             />
           </div>
@@ -59,15 +59,7 @@ export const Header = () => {
         </div>
 
         {/* Right side - Theme indicator */}
-        <div className="flex items-center space-x-4">
-          <div className={`text-right ${getSubtextColor()} animate-fade-in-up delay-300`}>
-            <div className="text-xs opacity-60">
-              {theme === 'dark' ? '🌲 Forest' : 
-               theme === 'orange' ? '🧡 Orange' : 
-               '☀️ Light'}
-            </div>
-          </div>
-        </div>
+
       </div>
     </nav>
   );
