@@ -1,6 +1,7 @@
 "use client";
 
 import { SealedAuctionFHE } from "@/components/SealedAuctionFHE";
+import { HowItWorks } from "@/components/HowItWorks";
 import { useMetaMaskEthersSigner } from "@/hooks/metamask/useMetaMaskEthersSigner";
 import { useState, useEffect } from "react";
 
@@ -8,6 +9,7 @@ export default function Home() {
   const { isConnected } = useMetaMaskEthersSigner();
   const [isDisconnected, setIsDisconnected] = useState<boolean>(false);
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [showHowItWorks, setShowHowItWorks] = useState<boolean>(false);
 
   // Fix hydration mismatch
   useEffect(() => {
@@ -90,8 +92,8 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Connect Button */}
-            <div className="mb-12">
+            {/* Action Buttons */}
+            <div className="mb-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
               <button
                 onClick={() => {
                   setIsDisconnected(false);
@@ -102,6 +104,14 @@ export default function Home() {
               >
                 <span className="mr-3">🦊</span>
                 Connect to MetaMask
+              </button>
+              
+              <button
+                onClick={() => setShowHowItWorks(true)}
+                className="inline-flex items-center justify-center px-8 py-4 bg-white text-gray-700 text-xl font-bold rounded-2xl shadow-xl hover:shadow-2xl transform hover:-translate-y-1 transition-all duration-200 border-2 border-gray-200 hover:border-blue-300"
+              >
+                <span className="mr-3">📚</span>
+                How It Works
               </button>
             </div>
           </div>
@@ -254,6 +264,12 @@ export default function Home() {
           <SealedAuctionFHE />
         </div>
       </div>
+
+      {/* How It Works Modal */}
+      <HowItWorks 
+        isVisible={showHowItWorks} 
+        onClose={() => setShowHowItWorks(false)} 
+      />
 
       {/* Footer */}
       <div className="bg-gray-50 border-t border-gray-200 mt-16">

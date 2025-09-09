@@ -21,6 +21,7 @@ interface AuctionInfo {
   creator?: string;
   imageHash?: string;
   imageUrl?: string;
+  image?: string; // Add image property
 }
 
 interface AuctionMarketplaceProps {
@@ -239,7 +240,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           seller: realSeller, // Use real seller from SealedAuction contract
           creator: realSeller, // Also add as creator
           imageHash: imageHash,
-          imageUrl: imageUrl
+          imageUrl: imageUrl,
+          image: imageUrl // Add image property
         };
         })
       );
@@ -430,8 +432,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         endTime: Date.now() + (newAuctionDuration * 1000),
         status: 'active',
         bidCount: 0,
-        imageHash: newAuctionImageHash,
-        imageUrl: newAuctionImage
+        imageHash: newAuctionImageHash || undefined,
+        imageUrl: newAuctionImage || undefined,
+        image: newAuctionImage || undefined // Add image property
       };
       
       setAuctions(prev => [newAuction, ...prev]);
@@ -920,6 +923,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                                 auctionId: auction.id,
                                 auctionName: auction.name,
                                 auctionDescription: auction.description,
+                                auctionImage: auction.image, // Add image data
                                 auctionEndTime: auction.endTime,
                                 auctionCreatedAt: auction.createdAt,
                                 auctionBidCount: auction.bidCount,

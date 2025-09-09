@@ -8,6 +8,7 @@ import { useMetaMaskEthersSigner } from "../hooks/metamask/useMetaMaskEthersSign
 import { useSealedAuctionFHE } from "@/hooks/useSealedAuctionFHE";
 import { errorNotDeployed } from "./ErrorNotDeployed";
 import { AuctionMarketplace } from "./AuctionMarketplace";
+import { HowItWorks } from "./HowItWorks";
 import { useTheme } from "../contexts/ThemeContext";
 
 /*
@@ -23,6 +24,7 @@ export const SealedAuctionFHE = () => {
   const [showMarketplace, setShowMarketplace] = useState<boolean>(false);
   const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(null);
   const [isDisconnected, setIsDisconnected] = useState<boolean>(false);
+  const [showHowItWorks, setShowHowItWorks] = useState<boolean>(false);
   const [auctionItem, setAuctionItem] = useState<{
     name: string;
     description: string;
@@ -174,6 +176,7 @@ export const SealedAuctionFHE = () => {
         auctionId, 
         auctionName, 
         auctionDescription, 
+        auctionImage,
         auctionEndTime, 
         auctionCreatedAt, 
         auctionBidCount,
@@ -186,6 +189,7 @@ export const SealedAuctionFHE = () => {
         auctionId, 
         auctionName, 
         auctionDescription,
+        auctionImage,
         autoRefresh 
       });
       console.log('🎯 Setting current contract address to:', contractAddress);
@@ -197,6 +201,7 @@ export const SealedAuctionFHE = () => {
         ...prev,
         name: auctionName || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
         description: auctionDescription || "Auction created on the blockchain",
+        image: auctionImage || prev.image, // Use marketplace image first
         endTime: auctionEndTime || prev.endTime,
         createdAt: auctionCreatedAt || prev.createdAt,
         bidCount: auctionBidCount || prev.bidCount,
@@ -312,7 +317,7 @@ export const SealedAuctionFHE = () => {
           name: prev.name || auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
           description: prev.description || auctionInfo.description || "Auction created on the blockchain",
           seller: prev.seller || auctionInfo.creator || sellerAddress, // Keep marketplace data first, then registry, then contract
-          image: prev.image || imageUrl // Add image from contract
+          image: prev.image || imageUrl // Keep marketplace image first, fallback to contract image
         }));
       } catch (registryError) {
         console.log('⚠️ Registry not available, using contract data only');
@@ -341,7 +346,7 @@ export const SealedAuctionFHE = () => {
           name: prev.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
           description: prev.description || "Auction created on the blockchain",
           seller: prev.seller || sellerAddress, // Keep marketplace data first, then contract
-          image: prev.image || imageUrl // Add image from contract
+          image: prev.image || imageUrl // Keep marketplace image first, fallback to contract image
         }));
       }
     } catch (error) {
@@ -442,6 +447,18 @@ export const SealedAuctionFHE = () => {
               }`}>Confidential Bidding with FHEVM</p>
             </div>
             <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setShowHowItWorks(true)}
+                className={`${
+                  theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
+                  theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
+                  'bg-gray-800 text-white border border-gray-600'
+                } px-4 py-3 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:scale-105 hover:shadow-xl`}
+                title="Learn how FHE auctions work"
+              >
+                <span>📚</span>
+                <span className="hidden md:inline">How It Works</span>
+              </button>
               <button
                 onClick={toggleTheme}
                 className={`${
@@ -919,6 +936,12 @@ export const SealedAuctionFHE = () => {
           </div>
       </div>
       )}
+
+      {/* How It Works Modal */}
+      <HowItWorks 
+        isVisible={showHowItWorks} 
+        onClose={() => setShowHowItWorks(false)} 
+      />
     </div>
   );
 };
