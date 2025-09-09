@@ -24,14 +24,16 @@ contract AuctionFactory {
     /// @param biddingSeconds Duration of the auction in seconds
     /// @param name Name of the auction
     /// @param description Description of the auction
+    /// @param imageHash IPFS hash of the auction image (optional)
     /// @return auctionAddress Address of the created auction
     function createAuction(
         uint256 biddingSeconds,
         string memory name,
-        string memory description
+        string memory description,
+        string memory imageHash
     ) external returns (address auctionAddress) {
-        // Deploy new SealedAuction with the actual seller (msg.sender)
-        SealedAuction auction = new SealedAuction(biddingSeconds, msg.sender);
+        // Deploy new SealedAuction with the actual seller (msg.sender) and image hash
+        SealedAuction auction = new SealedAuction(biddingSeconds, msg.sender, imageHash);
         auctionAddress = address(auction);
         
         // Calculate end time

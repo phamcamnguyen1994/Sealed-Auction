@@ -287,21 +287,61 @@ export const SealedAuctionFHE = () => {
         const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
         console.log('✅ Auction info from Registry:', auctionInfo);
         
+        // Load image from contract if available
+        let imageUrl = null;
+        try {
+          const auctionData = await import('../contracts/SealedAuction.json');
+          const auctionContract = new ethers.Contract(
+            contractAddress,
+            auctionData.abi,
+            ethersReadonlyProvider
+          );
+          
+          const imageHash = await auctionContract.imageHash();
+          if (imageHash && imageHash !== '') {
+            imageUrl = `https://gateway.pinata.cloud/ipfs/${imageHash}`;
+            console.log('🖼️ Loaded image from contract:', { imageHash, imageUrl });
+          }
+        } catch (e) {
+          console.log('⚠️ Could not load image from contract:', e);
+        }
+
         // Update auction item with info from both sources
         setAuctionItem(prev => ({
           ...prev,
           name: prev.name || auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
           description: prev.description || auctionInfo.description || "Auction created on the blockchain",
-          seller: prev.seller || auctionInfo.creator || sellerAddress // Keep marketplace data first, then registry, then contract
+          seller: prev.seller || auctionInfo.creator || sellerAddress, // Keep marketplace data first, then registry, then contract
+          image: prev.image || imageUrl // Add image from contract
         }));
       } catch (registryError) {
         console.log('⚠️ Registry not available, using contract data only');
+        // Load image from contract if available (fallback case)
+        let imageUrl = null;
+        try {
+          const auctionData = await import('../contracts/SealedAuction.json');
+          const auctionContract = new ethers.Contract(
+            contractAddress,
+            auctionData.abi,
+            ethersReadonlyProvider
+          );
+          
+          const imageHash = await auctionContract.imageHash();
+          if (imageHash && imageHash !== '') {
+            imageUrl = `https://gateway.pinata.cloud/ipfs/${imageHash}`;
+            console.log('🖼️ Loaded image from contract (fallback):', { imageHash, imageUrl });
+          }
+        } catch (e) {
+          console.log('⚠️ Could not load image from contract (fallback):', e);
+        }
+
         // Update with contract data only
         setAuctionItem(prev => ({
           ...prev,
           name: prev.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
           description: prev.description || "Auction created on the blockchain",
-          seller: prev.seller || sellerAddress // Keep marketplace data first, then contract
+          seller: prev.seller || sellerAddress, // Keep marketplace data first, then contract
+          image: prev.image || imageUrl // Add image from contract
         }));
       }
     } catch (error) {

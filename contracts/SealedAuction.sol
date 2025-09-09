@@ -12,6 +12,7 @@ contract SealedAuction is SepoliaConfig {
     uint256 public immutable endTime;
     bool    public ended;
     uint32  public bids;
+    string  public imageHash;
 
     // Encrypted state
     euint64  private highestBidEnc;   // encrypted highest bid
@@ -28,9 +29,10 @@ contract SealedAuction is SepoliaConfig {
         _;
     }
 
-    constructor(uint256 biddingSeconds, address _seller) {
+    constructor(uint256 biddingSeconds, address _seller, string memory _imageHash) {
         seller = _seller;
         endTime = block.timestamp + biddingSeconds;
+        imageHash = _imageHash;
         canViewAfterEnd[_seller] = true; // seller can view by default
     }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { ethers } from "ethers";
 import { useMetaMaskEthersSigner } from "../hooks/metamask/useMetaMaskEthersSigner";
 import { useTheme } from "../contexts/ThemeContext";
+import { ImageUpload } from "./ImageUpload";
 
 interface AuctionInfo {
   id: string;
@@ -18,6 +19,8 @@ interface AuctionInfo {
   winner?: string;
   seller?: string;
   creator?: string;
+  imageHash?: string;
+  imageUrl?: string;
 }
 
 interface AuctionMarketplaceProps {
@@ -33,6 +36,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   const [newAuctionDescription, setNewAuctionDescription] = useState("");
   const [newAuctionDuration, setNewAuctionDuration] = useState(300); // 5 minutes default
   const [newAuctionImage, setNewAuctionImage] = useState<string | null>(null);
+  const [newAuctionImageHash, setNewAuctionImageHash] = useState<string>("");
   const [registryContract, setRegistryContract] = useState<ethers.Contract | null>(null);
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,16 +45,10 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   const [auctionsPerPage] = useState(9);
   const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
-  // Handle image upload
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setNewAuctionImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
+  // Handle IPFS image upload
+  const handleImageUploaded = (ipfsHash: string, imageUrl: string) => {
+    setNewAuctionImageHash(ipfsHash);
+    setNewAuctionImage(imageUrl);
   };
   
   // Registry contract address (deployed on Sepolia)
@@ -180,6 +178,10 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           let isActive = auction.isActive !== undefined ? auction.isActive : auction[6];
           let realSeller = auction.creator || auction[1] || ''; // Default to Registry creator
           
+          // Initialize image variables
+          let imageHash = '';
+          let imageUrl = '';
+          
           if (contractAddress && ethersReadonlyProvider) {
             try {
               // Load SealedAuction contract data
@@ -200,6 +202,19 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
               const seller = await auctionContract.seller();
               realSeller = seller;
               
+              // Get image hash from contract (if available)
+              try {
+                // Try to get image hash from contract
+                if (auctionContract.imageHash) {
+                  imageHash = await auctionContract.imageHash();
+                  if (imageHash && imageHash !== '') {
+                    imageUrl = `https://gateway.pinata.cloud/ipfs/${imageHash}`;
+                  }
+                }
+              } catch (e) {
+                console.log('No imageHash function in contract or no image set');
+              }
+              
               console.log(`🔍 Real-time data for ${contractAddress}:`, {
                 endTime: new Date(endTime).toLocaleString(),
                 bidCount,
@@ -219,11 +234,13 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           description: description,
           createdAt: createdAt,
           endTime: endTime,
-            status: isActive ? 'active' : 'ended',
-            bidCount: bidCount,
-            seller: realSeller, // Use real seller from SealedAuction contract
-            creator: realSeller // Also add as creator
-          };
+          status: isActive ? 'active' : 'ended',
+          bidCount: bidCount,
+          seller: realSeller, // Use real seller from SealedAuction contract
+          creator: realSeller, // Also add as creator
+          imageHash: imageHash,
+          imageUrl: imageUrl
+        };
         })
       );
       
@@ -337,7 +354,8 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           tx = await factoryContract.createAuction(
             newAuctionDuration,
             newAuctionName,
-            newAuctionDescription
+            newAuctionDescription,
+            newAuctionImageHash || "" // Add IPFS hash as 4th parameter
           );
           break; // Success, exit retry loop
         } catch (error: any) {
@@ -411,7 +429,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
         createdAt: Date.now(),
         endTime: Date.now() + (newAuctionDuration * 1000),
         status: 'active',
-        bidCount: 0
+        bidCount: 0,
+        imageHash: newAuctionImageHash,
+        imageUrl: newAuctionImage
       };
       
       setAuctions(prev => [newAuction, ...prev]);
@@ -421,6 +441,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       setNewAuctionDescription("");
       setNewAuctionDuration(300);
       setNewAuctionImage(null);
+      setNewAuctionImageHash("");
       
       alert(`🎉 New auction "${newAuctionName}" created successfully!\n\n📍 Contract Address: ${contractAddress}\n✅ Created and registered in ONE transaction!\n\n🚀 Auction is now live on the blockchain and visible to all users.`);
       
@@ -685,36 +706,11 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
             </div>
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Auction Image (optional)</label>
-              <div className="flex items-center space-x-4">
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="auction-image-upload"
-                />
-                <label
-                  htmlFor="auction-image-upload"
-                  className="cursor-pointer bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium transition-colors"
-                >
-                  📷 Upload Image
-                </label>
-                {newAuctionImage && (
-                  <div className="flex items-center space-x-2">
-                    <img
-                      src={newAuctionImage}
-                      alt="Auction preview"
-                      className="w-20 h-20 object-cover rounded-lg border border-gray-300 shadow-sm"
-                    />
-                    <button
-                      onClick={() => setNewAuctionImage(null)}
-                      className="text-red-500 hover:text-red-700 text-sm font-medium"
-                    >
-                      ✕ Remove
-                    </button>
-                  </div>
-                )}
-              </div>
+              <ImageUpload
+                onImageUploaded={handleImageUploaded}
+                currentImageUrl={newAuctionImage || undefined}
+                disabled={isCreatingAuction}
+              />
             </div>
             <button
               onClick={createNewAuction}
@@ -849,29 +845,28 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                     {/* Overlay gradient */}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     {(() => {
-                      // Try to get image from localStorage
-                      const localAuctionData = localStorage.getItem(`auction-${auction.contractAddress}`);
-                      if (localAuctionData) {
-                        try {
-                          const data = JSON.parse(localAuctionData);
-                          if (data.image) {
-                            return (
-                              <img
-                                src={data.image}
-                                alt={auction.name}
-                                className="w-full h-full object-cover"
-                              />
-                            );
-                          }
-                        } catch (e) {
-                          console.log('Error parsing local auction data:', e);
-                        }
+                      // Check for IPFS image
+                      if (auction.imageUrl) {
+                        return (
+                          <img
+                            src={auction.imageUrl}
+                            alt={auction.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              // Fallback to IPFS gateway if direct URL fails
+                              const target = e.target as HTMLImageElement;
+                              if (auction.imageHash && !target.src.includes('gateway.pinata.cloud')) {
+                                target.src = `https://gateway.pinata.cloud/ipfs/${auction.imageHash}`;
+                              }
+                            }}
+                          />
+                        );
                       }
                       return (
                         <div className="text-center text-gray-500">
                           <div className="text-4xl mb-2 opacity-60">🎨</div>
                           <div className="text-xs font-medium">No Image</div>
-                          <div className="text-xs opacity-75">Click to add image</div>
+                          <div className="text-xs opacity-75">No image available</div>
                         </div>
                       );
                     })()}
