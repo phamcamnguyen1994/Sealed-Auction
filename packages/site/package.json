@@ -9,7 +9,7 @@
     "url": "git+https://github.com/zama-ai/fhevm-react-template.git"
   },
   "scripts": {
-    "clean": "rimraf .next",
+    "clean": "rmdir /s /q .next 2>nul || rmdir .next 2>nul || echo 'No .next directory to clean'",
     "dev:mock": "npm run clean && next dev --turbopack",
     "dev": "npm run clean && next dev --turbopack",
     "dev-webpack": "npm run clean && next dev",

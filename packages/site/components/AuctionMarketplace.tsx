@@ -878,7 +878,12 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                             window.dispatchEvent(new CustomEvent('auction-selected', {
                               detail: {
                                 contractAddress: auction.contractAddress,
-                                auctionId: auction.id
+                                auctionId: auction.id,
+                                auctionName: auction.name,
+                                auctionDescription: auction.description,
+                                auctionEndTime: auction.endTime,
+                                auctionCreatedAt: auction.createdAt,
+                                auctionBidCount: auction.bidCount
                               }
                             }));
                           } else {

@@ -34,7 +34,7 @@ export const SealedAuctionFHE = () => {
     description: "Loading auction information...",
     image: null,
     category: "Unknown",
-    seller: "0x8d30010878d95C7EeF78e543Ee2133db846633b8" // Default seller address
+    seller: "" // Empty seller address by default
   });
   const {
     provider,
@@ -100,10 +100,42 @@ export const SealedAuctionFHE = () => {
   // Get seller address from contract (if available)
   const [contractSeller, setContractSeller] = useState<string | null>(null);
   
+  // Load seller address from contract when contract address changes
+  useEffect(() => {
+    const loadSellerFromContract = async () => {
+      if (!currentContractAddress || !ethersReadonlyProvider) {
+        setContractSeller(null);
+        return;
+      }
+      
+      try {
+        const contractData = await import('../contracts/SealedAuction.json');
+        const contract = new ethers.Contract(
+          currentContractAddress,
+          contractData.abi,
+          ethersReadonlyProvider
+        );
+        
+        const sellerAddress = await contract.seller();
+        console.log('🏪 Loaded seller address from contract:', sellerAddress);
+        setContractSeller(sellerAddress);
+      } catch (error) {
+        console.log('❌ Failed to load seller from contract:', error);
+        setContractSeller(null);
+      }
+    };
+    
+    loadSellerFromContract();
+  }, [currentContractAddress, ethersReadonlyProvider]);
+  
   // Check if current user is the seller
   const isSeller = useMemo(() => {
     const sellerAddress = contractSeller || auctionItem.seller;
-    return ethersSigner?.address?.toLowerCase() === sellerAddress.toLowerCase();
+    // Only return true if we have a valid seller address and it matches current user
+    if (!sellerAddress || !ethersSigner?.address) {
+      return false;
+    }
+    return ethersSigner.address.toLowerCase() === sellerAddress.toLowerCase();
   }, [ethersSigner?.address, contractSeller, auctionItem.seller]);
 
   // Check if user was disconnected
@@ -133,13 +165,40 @@ export const SealedAuctionFHE = () => {
   // Listen for auction selection from marketplace
   useEffect(() => {
     const handleAuctionSelected = (event: any) => {
-      const { contractAddress, auctionId } = event.detail;
-      console.log('🎯 Auction selected event received:', { contractAddress, auctionId });
+      const { 
+        contractAddress, 
+        auctionId, 
+        auctionName, 
+        auctionDescription, 
+        auctionEndTime, 
+        auctionCreatedAt, 
+        auctionBidCount 
+      } = event.detail;
+      
+      console.log('🎯 Auction selected event received:', { 
+        contractAddress, 
+        auctionId, 
+        auctionName, 
+        auctionDescription 
+      });
       console.log('🎯 Setting current contract address to:', contractAddress);
+      
       setCurrentContractAddress(contractAddress);
+      
+      // Update auction item immediately with data from marketplace
+      setAuctionItem(prev => ({
+        ...prev,
+        name: auctionName || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+        description: auctionDescription || "Auction created on the blockchain",
+        endTime: auctionEndTime || prev.endTime,
+        createdAt: auctionCreatedAt || prev.createdAt,
+        bidCount: auctionBidCount || prev.bidCount
+      }));
+      
       // Close marketplace and show auction details
       setShowMarketplace(false);
-      // Load auction info from Registry (on-chain only)
+      
+      // Still try to load additional info from Registry (on-chain only)
       loadAuctionInfoFromRegistry(contractAddress);
     };
 
@@ -186,21 +245,21 @@ export const SealedAuctionFHE = () => {
       const auctionInfo = await registryContract.getAuctionByAddress(contractAddress);
       console.log('✅ Auction info from Registry:', auctionInfo);
       
-      // Update auction item with info from Registry
+      // Update auction item with info from Registry (only if not already set from marketplace)
       setAuctionItem(prev => ({
         ...prev,
-        name: auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-        description: auctionInfo.description || "Auction created on the blockchain",
+        name: prev.name || auctionInfo.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+        description: prev.description || auctionInfo.description || "Auction created on the blockchain",
         seller: auctionInfo.creator || prev.seller
       }));
     } catch (registryError) {
-      console.log('❌ Registry not available, using contract address as name');
-      // Final fallback - use contract address as name
+      console.log('❌ Registry not available, keeping existing auction data');
+      // Don't override existing data from marketplace
+      // Only set name if not already set
       setAuctionItem(prev => ({
         ...prev,
-        name: `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
-        description: "Auction created on the blockchain",
-        seller: prev.seller
+        name: prev.name || `Auction ${contractAddress.slice(0, 6)}...${contractAddress.slice(-4)}`,
+        description: prev.description || "Auction created on the blockchain"
       }));
     }
   };
@@ -420,7 +479,11 @@ export const SealedAuctionFHE = () => {
         )}
       </div>
               <div className={`text-sm ${getTextSecondary()}`}>
-                <span className="font-medium">Seller:</span> {auctionItem.seller.slice(0, 6)}...{auctionItem.seller.slice(-4)}
+                <span className="font-medium">Seller:</span> {
+                  (contractSeller || auctionItem.seller) ? 
+                    `${(contractSeller || auctionItem.seller).slice(0, 6)}...${(contractSeller || auctionItem.seller).slice(-4)}` :
+                    "Loading..."
+                }
               </div>
             </div>
             

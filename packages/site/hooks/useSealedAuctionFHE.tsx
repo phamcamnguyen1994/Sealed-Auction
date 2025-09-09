@@ -39,10 +39,11 @@ function getSealedAuctionByChainId(
     console.log('[getSealedAuctionByChainId] localStorage active-contract-address:', activeContractAddress);
   }
   
-  // Only use active contract address if available, don't fallback to artifact.address
-  const contractAddress = activeContractAddress;
+  // Use active contract address if available, otherwise fallback to artifact.address
+  const contractAddress = activeContractAddress || (artifact as any).address;
   console.log('[getSealedAuctionByChainId] Final contract address:', contractAddress);
   console.log('[getSealedAuctionByChainId] Artifact has address:', 'address' in artifact);
+  console.log('[getSealedAuctionByChainId] Artifact address:', (artifact as any).address);
   
   return {
     address: contractAddress as `0x${string}` | undefined,
