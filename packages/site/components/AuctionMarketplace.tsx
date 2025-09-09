@@ -37,6 +37,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   const [isCreateFormOpen, setIsCreateFormOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'ended' | 'finalized'>('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [auctionsPerPage] = useState(9);
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest' | 'name'>('newest');
 
   // Handle image upload
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -163,13 +166,13 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       
       const formattedAuctions: AuctionInfo[] = await Promise.all(
         allAuctions.map(async (auction: any, index: number) => {
-          console.log(`📋 Auction ${index}:`, auction);
-          
-          // Handle different data structures
-          const contractAddress = auction.contractAddress || auction[0];
-          const name = auction.name || auction[2] || `Auction ${index + 1}`;
-          const description = auction.description || auction[3] || '';
-          const createdAt = Number(auction.createdAt || auction[4]) * 1000;
+        console.log(`📋 Auction ${index}:`, auction);
+        
+        // Handle different data structures
+        const contractAddress = auction.contractAddress || auction[0];
+        const name = auction.name || auction[2] || `Auction ${index + 1}`;
+        const description = auction.description || auction[3] || '';
+        const createdAt = Number(auction.createdAt || auction[4]) * 1000;
           
           // Load real-time data from SealedAuction contract
           let endTime = Number(auction.endTime || auction[5]) * 1000;
@@ -208,14 +211,14 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
               console.log(`⚠️ Could not load real-time data for ${contractAddress}:`, error);
             }
           }
-          
-          return {
-            id: contractAddress || `auction-${index}`,
-            contractAddress: contractAddress || '',
-            name: name,
-            description: description,
-            createdAt: createdAt,
-            endTime: endTime,
+        
+        return {
+          id: contractAddress || `auction-${index}`,
+          contractAddress: contractAddress || '',
+          name: name,
+          description: description,
+          createdAt: createdAt,
+          endTime: endTime,
             status: isActive ? 'active' : 'ended',
             bidCount: bidCount,
             seller: realSeller, // Use real seller from SealedAuction contract
@@ -369,7 +372,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       console.log("Auction creation confirmed");
       
       // Get auction address from event
-      const event = receipt.logs.find(log => {
+      const event = receipt.logs.find((log: any) => {
         try {
           const parsed = factoryContract.interface.parseLog(log);
           return parsed?.name === 'AuctionCreated';
@@ -458,13 +461,37 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
     return 'active';
   };
 
-  // Filter auctions based on search and status
-  const filteredAuctions = auctions.filter(auction => {
+  // Filter and sort auctions
+  const filteredAndSortedAuctions = auctions
+    .filter(auction => {
     const matchesSearch = auction.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          auction.description.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || getAuctionStatus(auction) === statusFilter;
     return matchesSearch && matchesStatus;
-  });
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return b.createdAt - a.createdAt; // Newest first
+        case 'oldest':
+          return a.createdAt - b.createdAt; // Oldest first
+        case 'name':
+          return a.name.localeCompare(b.name); // Alphabetical
+        default:
+          return b.createdAt - a.createdAt;
+      }
+    });
+
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedAuctions.length / auctionsPerPage);
+  const startIndex = (currentPage - 1) * auctionsPerPage;
+  const endIndex = startIndex + auctionsPerPage;
+  const paginatedAuctions = filteredAndSortedAuctions.slice(startIndex, endIndex);
+
+  // Reset to first page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, sortBy]);
 
   // Format time remaining
   const getTimeRemaining = (endTime: number) => {
@@ -553,22 +580,33 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
   };
 
   return (
-    <div className={`w-full mx-8 p-6 transition-colors duration-300 ${
+    <div className={`w-full mx-8 p-6 transition-colors duration-300 relative overflow-hidden ${
       theme === 'dark' ? 'bg-gray-950' : 
       theme === 'orange' ? 'bg-gradient-to-br from-orange-100 to-amber-50' : 
-      'bg-gray-50'
+      'bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/30'
     }`}>
+      {/* Animated background particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-10 left-10 w-2 h-2 bg-purple-300 rounded-full animate-pulse opacity-60"></div>
+        <div className="absolute top-20 right-20 w-1 h-1 bg-blue-300 rounded-full animate-bounce opacity-40"></div>
+        <div className="absolute bottom-20 left-20 w-1.5 h-1.5 bg-indigo-300 rounded-full animate-ping opacity-50"></div>
+        <div className="absolute bottom-10 right-10 w-2 h-2 bg-purple-200 rounded-full animate-pulse opacity-30"></div>
+        <div className="absolute top-1/2 left-1/4 w-1 h-1 bg-blue-200 rounded-full animate-bounce opacity-40"></div>
+        <div className="absolute top-1/3 right-1/3 w-1.5 h-1.5 bg-indigo-200 rounded-full animate-ping opacity-30"></div>
+      </div>
       {/* Header */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 relative z-10">
         <div className="flex items-center justify-center space-x-4 mb-4">
-          <h1 className={`text-4xl font-bold mb-2 ${getTextPrimary()}`}>🔐 Auction Marketplace</h1>
+          <h1 className={`text-5xl font-bold mb-2 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent animate-fade-in-up`}>
+            <span className="inline-block animate-bounce">🔐</span> Auction Marketplace
+          </h1>
           <button
             onClick={toggleTheme}
             className={`${
               theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
               theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
               'bg-gray-800 text-white border border-gray-600'
-            } px-4 py-2 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg`}
+            } px-4 py-2 rounded-lg font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2 shadow-lg hover:scale-105 hover:shadow-xl animate-fade-in-right delay-100`}
             title={`Current: ${theme.charAt(0).toUpperCase() + theme.slice(1)} - Click to cycle themes`}
           >
             <span>{
@@ -579,17 +617,21 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
             <span className="hidden md:inline">{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
           </button>
         </div>
-        <p className={`text-xl ${getTextSecondary()}`}>Create and participate in confidential sealed auctions</p>
+        <p className={`text-xl ${getTextSecondary()} mb-2 animate-fade-in-up delay-200`}>Create and participate in confidential sealed auctions</p>
+        <p className={`text-sm ${getTextMuted()} animate-fade-in-up delay-300`}>Powered by FHEVM technology for secure, private bidding</p>
       </div>
 
       {/* Create New Auction Section - Collapsible */}
-      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} mb-8`}>
+      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} mb-8 animate-fade-in-up delay-400 hover:shadow-xl transition-all duration-300`}>
         <div 
-          className="p-6 cursor-pointer hover:bg-gray-50 transition-colors"
+          className="p-6 cursor-pointer hover:bg-gradient-to-r hover:from-purple-50 hover:to-blue-50 transition-all duration-300"
           onClick={() => setIsCreateFormOpen(!isCreateFormOpen)}
         >
           <div className="flex items-center justify-between">
-            <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>Create New Auction</h2>
+            <h2 className={`text-2xl font-bold ${getTextPrimary()} flex items-center space-x-2`}>
+              <span className="animate-bounce">🚀</span>
+              <span>Create New Auction</span>
+            </h2>
             <div className="flex items-center space-x-2">
               <span className={`text-sm ${getTextMuted()}`}>
                 {isCreateFormOpen ? 'Click to collapse' : 'Click to expand'}
@@ -700,9 +742,12 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
       </div>
 
       {/* Auctions List */}
-      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} p-6`}>
+      <div className={`${getCardBg()} rounded-xl shadow-lg border ${getCardBorder()} p-6 animate-fade-in-up delay-500 hover:shadow-xl transition-all duration-300`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className={`text-2xl font-bold ${getTextPrimary()}`}>All Auctions</h2>
+          <h2 className={`text-2xl font-bold ${getTextPrimary()} flex items-center space-x-2`}>
+            <span className="animate-pulse">🏪</span>
+            <span>All Auctions</span>
+          </h2>
           <button
             onClick={() => {
               // Load from Registry contract only (on-chain data)
@@ -714,11 +759,7 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                 setAuctions([]);
               }
             }}
-            className={`${
-              theme === 'dark' ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' :
-              theme === 'orange' ? 'bg-orange-500 text-white hover:bg-orange-600' :
-              'bg-blue-600 text-white hover:bg-blue-700'
-            } px-4 py-2 rounded-lg font-medium transition-colors flex items-center space-x-2`}
+            className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-lg font-medium transition-all duration-300 hover:from-blue-600 hover:to-purple-700 hover:shadow-lg hover:-translate-y-0.5 transform flex items-center space-x-2 hover:scale-105"
           >
             <span>🔄</span>
             <span>Refresh</span>
@@ -757,11 +798,24 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                 <option value="finalized">⚪ Finalized</option>
               </select>
             </div>
+            
+            {/* Sort By */}
+            <div className="md:w-48">
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${getInputBg()}`}
+              >
+                <option value="newest">🕒 Newest First</option>
+                <option value="oldest">🕐 Oldest First</option>
+                <option value="name">🔤 Name A-Z</option>
+              </select>
+            </div>
           </div>
           
           {/* Results Count */}
           <div className={`text-sm ${getTextMuted()}`}>
-            Showing {filteredAuctions.length} of {auctions.length} auctions
+            Showing {paginatedAuctions.length} of {filteredAndSortedAuctions.length} auctions (Page {currentPage} of {totalPages})
             {searchTerm && ` matching "${searchTerm}"`}
             {statusFilter !== 'all' && ` with status "${statusFilter}"`}
           </div>
@@ -775,22 +829,25 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredAuctions.map((auction, index) => {
+            {paginatedAuctions.map((auction, index) => {
               const status = getAuctionStatus(auction);
               const isSelected = selectedAuction === auction.id;
               
               return (
                 <div
                   key={`${auction.contractAddress}-${index}`}
-                  className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-all hover:shadow-lg ${
+                  className={`group relative border-2 rounded-2xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 animate-fade-in-up ${
                     isSelected 
-                      ? 'border-purple-500 bg-purple-50' 
-                      : 'border-gray-200 hover:border-gray-300'
+                      ? 'border-purple-500 bg-gradient-to-br from-purple-50 to-blue-50 shadow-lg' 
+                      : 'border-gray-200 hover:border-purple-300 bg-white hover:bg-gradient-to-br hover:from-gray-50 hover:to-blue-50'
                   }`}
+                  style={{ animationDelay: `${index * 100}ms` }}
                   onClick={() => setSelectedAuction(auction.id)}
                 >
                   {/* Auction Image */}
-                  <div className="h-48 bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center">
+                  <div className="relative h-32 bg-gradient-to-br from-purple-100 via-blue-100 to-indigo-100 flex items-center justify-center overflow-hidden">
+                    {/* Overlay gradient */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     {(() => {
                       // Try to get image from localStorage
                       const localAuctionData = localStorage.getItem(`auction-${auction.contractAddress}`);
@@ -811,46 +868,47 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                         }
                       }
                       return (
-                        <div className={`text-center ${getTextMuted()}`}>
-                          <div className="text-4xl mb-2">🖼️</div>
-                          <div className="text-sm">No Image</div>
+                        <div className="text-center text-gray-500">
+                          <div className="text-4xl mb-2 opacity-60">🎨</div>
+                          <div className="text-xs font-medium">No Image</div>
+                          <div className="text-xs opacity-75">Click to add image</div>
                         </div>
                       );
                     })()}
                   </div>
                   
                   <div className="p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <h3 className="font-semibold text-gray-900 truncate text-lg">{auction.name}</h3>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        status === 'active' ? 'bg-green-100 text-green-800 border border-green-200' :
-                        status === 'ended' ? 'bg-yellow-100 text-yellow-800 border border-yellow-200' :
-                        'bg-gray-100 text-gray-800 border border-gray-200'
+                    <div className="flex items-start justify-between mb-2">
+                      <h3 className="font-bold text-gray-900 truncate text-base leading-tight group-hover:text-purple-700 transition-colors">{auction.name}</h3>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                        status === 'active' ? 'bg-gradient-to-r from-green-100 to-emerald-100 text-green-800 border border-green-200' :
+                        status === 'ended' ? 'bg-gradient-to-r from-yellow-100 to-amber-100 text-yellow-800 border border-yellow-200' :
+                        'bg-gradient-to-r from-gray-100 to-slate-100 text-gray-800 border border-gray-200'
                       }`}>
                         {status === 'active' ? '🟢 Active' : status === 'ended' ? '🟡 Ended' : '⚪ Finalized'}
                       </span>
                     </div>
                     
                     {auction.description && (
-                      <p className={`text-sm mb-3 line-clamp-2 ${getTextSecondary()}`}>{auction.description}</p>
+                      <p className={`text-xs mb-3 line-clamp-2 leading-relaxed ${getTextSecondary()}`}>{auction.description}</p>
                     )}
                     
                     <div className={`grid grid-cols-2 gap-2 text-xs mb-3 ${getTextMuted()}`}>
-                      <div className="flex items-center space-x-1">
-                        <span>📅</span>
-                        <span>{formatDate(auction.createdAt)}</span>
+                      <div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-2 py-1">
+                        <span className="text-blue-500">📅</span>
+                        <span className="font-medium text-xs">{formatDate(auction.createdAt)}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <span>⏰</span>
-                        <span>{getTimeRemaining(auction.endTime)}</span>
+                      <div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-2 py-1">
+                        <span className="text-orange-500">⏰</span>
+                        <span className="font-medium text-xs">{getTimeRemaining(auction.endTime)}</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <span>💰</span>
-                        <span>{auction.bidCount} bids</span>
+                      <div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-2 py-1">
+                        <span className="text-green-500">💰</span>
+                        <span className="font-medium text-xs">{auction.bidCount} bids</span>
                       </div>
-                      <div className="flex items-center space-x-1">
-                        <span>📋</span>
-                        <span className="truncate">{auction.contractAddress ? `${auction.contractAddress.slice(0, 6)}...${auction.contractAddress.slice(-4)}` : 'N/A'}</span>
+                      <div className="flex items-center space-x-1 bg-gray-50 rounded-lg px-2 py-1">
+                        <span className="text-purple-500">📋</span>
+                        <span className="font-medium text-xs truncate">{auction.contractAddress ? `${auction.contractAddress.slice(0, 6)}...${auction.contractAddress.slice(-4)}` : 'N/A'}</span>
                       </div>
                     </div>
                   
@@ -877,13 +935,9 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                             alert('Invalid auction contract address');
                           }
                         }}
-                        className={`w-full ${
-                          theme === 'dark' ? 'bg-gray-700 text-gray-100 hover:bg-gray-600' :
-                          theme === 'orange' ? 'bg-orange-500 text-white hover:bg-orange-600' :
-                          'bg-purple-600 text-white hover:bg-purple-700'
-                        } py-2 px-4 rounded-lg text-sm font-medium transition-colors`}
+                        className="w-full bg-gradient-to-r from-purple-600 to-blue-600 text-white py-3 px-4 rounded-xl text-sm font-semibold transition-all duration-300 hover:from-purple-700 hover:to-blue-700 hover:shadow-lg hover:-translate-y-0.5 transform hover:scale-105 animate-glow"
                       >
-                        Open Auction
+                        🚀 Open Auction
                       </button>
                     </div>
                   )}
@@ -891,6 +945,63 @@ export const AuctionMarketplace = ({ onClose }: AuctionMarketplaceProps) => {
                 </div>
               );
             })}
+          </div>
+        )}
+        
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-center space-x-2 mt-8">
+            <button
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              disabled={currentPage === 1}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                currentPage === 1
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 hover:shadow-lg hover:-translate-y-0.5 transform'
+              }`}
+            >
+              ← Previous
+            </button>
+            
+            {/* Page Numbers */}
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              let pageNum;
+              if (totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (currentPage <= 3) {
+                pageNum = i + 1;
+              } else if (currentPage >= totalPages - 2) {
+                pageNum = totalPages - 4 + i;
+              } else {
+                pageNum = currentPage - 2 + i;
+              }
+              
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setCurrentPage(pageNum)}
+                  className={`px-3 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    currentPage === pageNum
+                      ? 'bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300 hover:shadow-md'
+                  }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            
+            <button
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+              disabled={currentPage === totalPages}
+              className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                currentPage === totalPages
+                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700 hover:shadow-lg hover:-translate-y-0.5 transform'
+              }`}
+            >
+              Next →
+            </button>
           </div>
         )}
       </div>

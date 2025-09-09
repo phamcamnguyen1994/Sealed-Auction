@@ -944,5 +944,6 @@ export const useSealedAuctionFHE = (parameters: {
     isDeployed,
     sellerAddress,
     ethersSigner,
+    blockTimestamp,
   };
 };
