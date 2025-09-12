@@ -51,9 +51,10 @@ export default function Home() {
         )}
       </div>
 
-      {showHowItWorks && (
-        <HowItWorks onClose={() => setShowHowItWorks(false)} />
-      )}
+      <HowItWorks 
+        isVisible={showHowItWorks} 
+        onClose={() => setShowHowItWorks(false)} 
+      />
     </main>
   );
 }
