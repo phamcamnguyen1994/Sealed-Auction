@@ -8,6 +8,8 @@
         "deploy": "hardhat run scripts/deploy.ts --network hardhat",
         "deploy:sepolia": "hardhat run scripts/deploy-and-update.ts --network sepolia",
         "deploy:localhost": "hardhat run scripts/deploy-and-update.ts --network localhost",
+        "deploy:registry:sepolia": "hardhat run scripts/deploy-registry-and-factory.ts --network sepolia",
+        "deploy:registry:localhost": "hardhat run scripts/deploy-registry-and-factory.ts --network localhost",
         "genabi": "hardhat run scripts/genabi.ts --network sepolia",
         "genabi:localhost": "hardhat run scripts/genabi.ts --network localhost",
         "build": "cd packages/site && npm run build",
