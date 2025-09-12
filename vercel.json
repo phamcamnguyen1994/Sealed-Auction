@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "packages/site/package.json",
+      "src": "new-fhevm-template/packages/site/package.json",
       "use": "@vercel/next",
       "config": {
         "distDir": ".next"
@@ -12,12 +12,7 @@
   "routes": [
     {
       "src": "/(.*)",
-      "dest": "packages/site/$1"
+      "dest": "new-fhevm-template/packages/site/$1"
     }
-  ],
-  "functions": {
-    "packages/site/app/**/*.tsx": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
