@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd new-fhevm-template/packages/site && npm run build",
-  "outputDirectory": "new-fhevm-template/packages/site/.next",
-  "installCommand": "cd new-fhevm-template/packages/site && npm install"
+  "buildCommand": "npm run build",
+  "outputDirectory": "packages/site/.next",
+  "installCommand": "npm install"
 }
