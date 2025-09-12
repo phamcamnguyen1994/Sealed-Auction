@@ -9,22 +9,22 @@
     "url": "git+https://github.com/zama-ai/fhevm-react-template.git"
   },
   "scripts": {
-    "clean": "rmdir /s /q .next 2>nul || rmdir .next 2>nul || echo 'No .next directory to clean'",
+    "clean": "rimraf .next",
     "dev:mock": "npm run clean && next dev --turbopack",
     "dev": "npm run clean && next dev --turbopack",
     "dev-webpack": "npm run clean && next dev",
-    "genabi": "echo 'skip genabi'",
-    "ishhrunning": "echo 'skip is-hardhat-node-running'",
+    "genabi": "echo 'Skipping genabi - using existing contracts'",
+    "ishhrunning": "echo 'Skipping hardhat check'",
     "prebuild": "mkdir -p contracts && cp ../../artifacts/contracts/SealedAuction.sol/SealedAuction.json contracts/ 2>/dev/null || echo 'Artifacts not found, skipping copy'",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "postinstall": "echo 'Installation completed'"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@zama-fhe/relayer-sdk": "^0.2.0",
+    "@zama-fhe/relayer-sdk": "0.2.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "ethers": "^6.15.0",
     "idb": "^8.0.3",
     "next": "^15.4.2",
     "react": "^19.1.0",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
-    "@fhevm/mock-utils": "0.0.1-6",
+    "@fhevm/mock-utils": "0.1.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.6.4",
     "@testing-library/react": "^16.3.0",

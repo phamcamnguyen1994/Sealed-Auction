@@ -17,8 +17,7 @@
     "ishhrunning": "echo 'Skipping hardhat check'",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "postinstall": "echo 'Installation completed'"
+    "lint": "next lint"
   },
   "dependencies": {
     "@zama-fhe/relayer-sdk": "0.2.0",
