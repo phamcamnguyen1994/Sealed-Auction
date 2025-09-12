@@ -616,7 +616,7 @@ export const useSealedAuctionFHE = (parameters: {
       const filter = thisAuctionContract.filters.BidPlaced();
       const events = await thisAuctionContract.queryFilter(filter);
       
-      const bidders = events.map(event => event.args?.bidder);
+      const bidders = events.map(event => (event as any).args?.bidder);
       
       console.log("📋 Bidders from events:", {
         totalBidders: bidders.length,
@@ -624,7 +624,7 @@ export const useSealedAuctionFHE = (parameters: {
         events: events.map(e => ({
           blockNumber: e.blockNumber,
           transactionHash: e.transactionHash,
-          bidder: e.args?.bidder
+          bidder: (e as any).args?.bidder
         }))
       });
       
@@ -833,7 +833,7 @@ export const useSealedAuctionFHE = (parameters: {
         events: finalizeEvents.map(e => ({
           blockNumber: e.blockNumber,
           transactionHash: e.transactionHash,
-          seller: e.args?.seller
+          seller: (e as any).args?.seller
         }))
       });
       
