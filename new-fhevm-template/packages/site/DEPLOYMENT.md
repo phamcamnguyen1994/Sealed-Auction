@@ -1,11 +1,16 @@
-# 🚀 Deployment Guide for Vercel (new-fhevm-template)
+# 🚀 Simple Vercel Deployment Guide
 
-## 📁 Important: Correct Path
-**Deploy from**: `new-fhevm-template/packages/site`
+## ⚠️ CRITICAL: Set Root Directory Correctly
 
-## Environment Variables
+**Root Directory**: `new-fhevm-template/packages/site`
 
-Add these environment variables in your Vercel dashboard:
+## Steps to Fix 404 Error
+
+1. **Vercel Dashboard → Project → Settings → General**
+2. **Root Directory**: Set to `new-fhevm-template/packages/site`
+3. **Redeploy**
+
+## Environment Variables (Optional)
 
 ```bash
 NEXT_PUBLIC_CHAIN_ID=11155111
@@ -13,33 +18,15 @@ NEXT_PUBLIC_RPC_URL=https://sepolia.infura.io/v3/YOUR_INFURA_KEY
 NEXT_PUBLIC_RELAYER_URL=https://api.fhevm.org
 ```
 
-## Steps to Deploy
+## Why 404 Happens
 
-1. **Connect your GitHub repository to Vercel**
-2. **Set Root Directory**: Set to `new-fhevm-template/packages/site`
-3. **Add Environment Variables** (see above)
-4. **Deploy**
+❌ **Wrong Root Directory** → Vercel can't find `package.json` and `next.config.js`
+❌ **Monorepo Structure** → Need to point to correct subfolder
+❌ **Complex Config** → Simplified to avoid conflicts
 
-## Vercel Configuration
+## What's Fixed
 
-- **Root Directory**: `new-fhevm-template/packages/site`
-- **Build Command**: `npm run build`
-- **Output Directory**: `.next`
-- **Install Command**: `npm install`
-
-## Common Issues Fixed
-
-✅ **Updated next.config.js with proper webpack fallbacks**
-✅ **Added vercel.json configuration with rewrites**
-✅ **Fixed FHEVM headers**
-✅ **Added environment variables**
-✅ **Configured build optimizations**
-✅ **Added outputFileTracingRoot for monorepo structure**
-✅ **Added rewrites to handle SPA routing**
-
-## Notes
-
-- The app requires FHEVM headers for proper functionality
-- All Node.js modules are properly polyfilled for browser environment
-- TypeScript and ESLint errors are ignored during build for deployment stability
-- Make sure to deploy from the correct path: `new-fhevm-template/packages/site`
+✅ **Simplified next.config.js** - Only essential configs
+✅ **Minimal vercel.json** - No complex rewrites
+✅ **Proper webpack fallbacks** - For Node.js modules
+✅ **FHEVM headers** - Required for encryption
