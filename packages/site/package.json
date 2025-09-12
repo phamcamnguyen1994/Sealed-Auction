@@ -18,7 +18,8 @@
     "prebuild": "mkdir -p contracts && cp ../../artifacts/contracts/SealedAuction.sol/SealedAuction.json contracts/ 2>/dev/null || echo 'Artifacts not found, skipping copy'",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "postinstall": "echo 'Installation completed'"
   },
   "dependencies": {
     "@zama-fhe/relayer-sdk": "^0.2.0",

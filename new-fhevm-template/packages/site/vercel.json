@@ -7,7 +7,7 @@
     }
   ],
   "functions": {
-    "packages/site/app/**/*.tsx": {
+    "app/**/*.tsx": {
       "maxDuration": 30
     }
   },
