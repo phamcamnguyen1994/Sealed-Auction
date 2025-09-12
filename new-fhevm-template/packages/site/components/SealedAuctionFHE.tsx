@@ -586,6 +586,42 @@ export const SealedAuctionFHE = ({
                   src={auctionItem.image} 
                   alt={auctionItem.name}
                   className="w-full h-full object-cover"
+                  crossOrigin="anonymous"
+                  onError={(e) => {
+                    // Fallback to different IPFS gateways if direct URL fails
+                    const target = e.target as HTMLImageElement;
+                    const currentSrc = target.src;
+                    
+                    if (currentSrc.includes('gateway.pinata.cloud')) {
+                      // Try different IPFS gateways
+                      const gateways = [
+                        `https://ipfs.io/ipfs/${currentSrc.split('/ipfs/')[1]}`,
+                        `https://cloudflare-ipfs.com/ipfs/${currentSrc.split('/ipfs/')[1]}`,
+                        `https://dweb.link/ipfs/${currentSrc.split('/ipfs/')[1]}`
+                      ];
+                      
+                      const nextGateway = gateways.find(gateway => 
+                        gateway !== currentSrc && !target.dataset.triedGateways?.includes(gateway)
+                      );
+                      
+                      if (nextGateway) {
+                        target.dataset.triedGateways = (target.dataset.triedGateways || '') + nextGateway;
+                        target.src = nextGateway;
+                      } else {
+                        // All gateways failed, show placeholder
+                        target.style.display = 'none';
+                        target.parentElement!.innerHTML = `
+                          <div class="w-full h-full flex items-center justify-center">
+                            <div class="text-center">
+                              <div class="text-6xl mb-4">🏺</div>
+                              <p class="font-semibold text-gray-500">Image Error</p>
+                              <p class="text-sm text-gray-500">Failed to load</p>
+                            </div>
+                          </div>
+                        `;
+                      }
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">

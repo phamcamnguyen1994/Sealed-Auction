@@ -231,7 +231,7 @@ export const AuctionMarketplace = ({ onClose, onAuctionSelected }: AuctionMarket
                   }
                 }
               } catch (e) {
-                console.log('No imageHash function in contract or no image set');
+                console.log(`⚠️ Contract ${contractAddress} - No imageHash function or error:`, e);
               }
               
               console.log(`🔍 Real-time data for ${contractAddress}:`, {
@@ -895,11 +895,39 @@ export const AuctionMarketplace = ({ onClose, onAuctionSelected }: AuctionMarket
                             src={auction.imageUrl}
                             alt={auction.name}
                             className="w-full h-full object-cover"
+                            crossOrigin="anonymous"
                             onError={(e) => {
-                              // Fallback to IPFS gateway if direct URL fails
+                              // Fallback to different IPFS gateways if direct URL fails
                               const target = e.target as HTMLImageElement;
-                              if (auction.imageHash && !target.src.includes('gateway.pinata.cloud')) {
-                                target.src = `https://gateway.pinata.cloud/ipfs/${auction.imageHash}`;
+                              const currentSrc = target.src;
+                              
+                              if (auction.imageHash) {
+                                // Try different IPFS gateways
+                                const gateways = [
+                                  `https://gateway.pinata.cloud/ipfs/${auction.imageHash}`,
+                                  `https://ipfs.io/ipfs/${auction.imageHash}`,
+                                  `https://cloudflare-ipfs.com/ipfs/${auction.imageHash}`,
+                                  `https://dweb.link/ipfs/${auction.imageHash}`
+                                ];
+                                
+                                const nextGateway = gateways.find(gateway => 
+                                  gateway !== currentSrc && !target.dataset.triedGateways?.includes(gateway)
+                                );
+                                
+                                if (nextGateway) {
+                                  target.dataset.triedGateways = (target.dataset.triedGateways || '') + nextGateway;
+                                  target.src = nextGateway;
+                                } else {
+                                  // All gateways failed, show placeholder
+                                  target.style.display = 'none';
+                                  target.parentElement!.innerHTML = `
+                                    <div class="text-center text-gray-500">
+                                      <div class="text-4xl mb-2 opacity-60">🎨</div>
+                                      <div class="text-xs font-medium">Image Error</div>
+                                      <div class="text-xs opacity-75">Failed to load</div>
+                                    </div>
+                                  `;
+                                }
                               }
                             }}
                           />
