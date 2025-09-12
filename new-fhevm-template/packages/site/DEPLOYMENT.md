@@ -29,11 +29,13 @@ NEXT_PUBLIC_RELAYER_URL=https://api.fhevm.org
 
 ## Common Issues Fixed
 
-✅ **Updated next.config.ts with proper webpack fallbacks**
-✅ **Added vercel.json configuration**
+✅ **Updated next.config.js with proper webpack fallbacks**
+✅ **Added vercel.json configuration with rewrites**
 ✅ **Fixed FHEVM headers**
 ✅ **Added environment variables**
 ✅ **Configured build optimizations**
+✅ **Added outputFileTracingRoot for monorepo structure**
+✅ **Added rewrites to handle SPA routing**
 
 ## Notes
 

@@ -1,24 +1,25 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   // Required by FHEVM 
-  headers: async () => [
-    {
-      source: '/:path*',
-      headers: [
-        {
-          key: 'Cross-Origin-Opener-Policy',
-          value: 'same-origin',
-        },
-        {
-          key: 'Cross-Origin-Embedder-Policy',
-          value: 'require-corp',
-        },
-      ],
-    },
-  ],
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin',
+          },
+          {
+            key: 'Cross-Origin-Embedder-Policy',
+            value: 'require-corp',
+          },
+        ],
+      },
+    ];
+  },
   // Fix for Vercel deployment
-  outputFileTracingRoot: undefined,
+  outputFileTracingRoot: "../../",
   eslint: {
     ignoreDuringBuilds: true,
   },
@@ -53,6 +54,10 @@ const nextConfig: NextConfig = {
   experimental: {
     serverComponentsExternalPackages: ['@fhevm/mock-utils'],
   },
+  // Additional Vercel fixes
+  trailingSlash: false,
+  poweredByHeader: false,
+  generateEtags: false,
 };
 
-export default nextConfig;
+module.exports = nextConfig;
