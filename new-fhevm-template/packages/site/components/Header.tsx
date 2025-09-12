@@ -3,7 +3,11 @@
 import { useTheme } from "../contexts/ThemeContext";
 import Image from "next/image";
 
-export const Header = () => {
+interface HeaderProps {
+  onShowHowItWorks?: () => void;
+}
+
+export const Header = ({ onShowHowItWorks }: HeaderProps) => {
   const { theme } = useTheme();
 
   // Theme-aware styling functions
@@ -58,7 +62,17 @@ export const Header = () => {
           </div>
         </div>
 
-        {/* Right side - Theme indicator */}
+        {/* Right side - How It Works button */}
+        {onShowHowItWorks && (
+          <div className="animate-fade-in-up delay-400">
+            <button
+              onClick={onShowHowItWorks}
+              className={`px-6 py-3 rounded-lg font-semibold transition-all duration-300 hover:scale-105 shadow-lg ${getTextColor()} bg-white bg-opacity-20 hover:bg-opacity-30 border border-white border-opacity-30`}
+            >
+              How It Works
+            </button>
+          </div>
+        )}
 
       </div>
     </nav>
