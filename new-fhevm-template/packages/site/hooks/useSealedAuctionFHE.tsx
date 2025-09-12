@@ -175,13 +175,15 @@ export const useSealedAuctionFHE = (parameters: {
         
         // Get current block timestamp and seller address
         try {
-          const block = await ethersReadonlyProvider?.getBlock('latest');
-          if (block) {
-            setBlockTimestamp(block.timestamp);
-            console.log("[useSealedAuctionFHE] Block timestamp:", block.timestamp);
-            console.log("[useSealedAuctionFHE] Block number:", block.number);
-            console.log("[useSealedAuctionFHE] End time:", state._endTime.toString());
-            console.log("[useSealedAuctionFHE] Time difference:", block.timestamp - Number(state._endTime));
+          if (ethersReadonlyProvider && 'getBlock' in ethersReadonlyProvider) {
+            const block = await (ethersReadonlyProvider as any).getBlock('latest');
+            if (block) {
+              setBlockTimestamp(block.timestamp);
+              console.log("[useSealedAuctionFHE] Block timestamp:", block.timestamp);
+              console.log("[useSealedAuctionFHE] Block number:", block.number);
+              console.log("[useSealedAuctionFHE] End time:", state._endTime.toString());
+              console.log("[useSealedAuctionFHE] Time difference:", block.timestamp - Number(state._endTime));
+            }
           }
           
           // Get seller address
