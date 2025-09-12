@@ -1,18 +1,6 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "new-fhevm-template/packages/site/package.json",
-      "use": "@vercel/next",
-      "config": {
-        "distDir": ".next"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "new-fhevm-template/packages/site/$1"
-    }
-  ]
+  "buildCommand": "cd new-fhevm-template/packages/site && npm run build",
+  "outputDirectory": "new-fhevm-template/packages/site/.next",
+  "installCommand": "cd new-fhevm-template/packages/site && npm install"
 }
