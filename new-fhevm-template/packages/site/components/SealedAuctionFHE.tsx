@@ -11,18 +11,30 @@ import { AuctionMarketplace } from "./AuctionMarketplace";
 import { HowItWorks } from "./HowItWorks";
 import { useTheme } from "../contexts/ThemeContext";
 
+interface SealedAuctionFHEProps {
+  auctionAddress?: string;
+  auctionImage?: string;
+  onBack?: () => void;
+  onShowHowItWorks?: () => void;
+}
+
 /*
  * Main SealedAuction React component with FHE operations
  *  - "Refresh" button: allows you to get the current auction state.
  *  - "Place Bid" button: allows you to place a sealed bid using FHE operations.
  *  - "Finalize" button: allows you to finalize the auction.
  */
-export const SealedAuctionFHE = () => {
+export const SealedAuctionFHE = ({ 
+  auctionAddress, 
+  auctionImage, 
+  onBack, 
+  onShowHowItWorks 
+}: SealedAuctionFHEProps) => {
   const { storage: fhevmDecryptionSignatureStorage } = useInMemoryStorage();
   const { theme, toggleTheme } = useTheme();
   const [bidAmount, setBidAmount] = useState<number>(70);
   const [showMarketplace, setShowMarketplace] = useState<boolean>(false);
-  const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(null);
+  const [currentContractAddress, setCurrentContractAddress] = useState<string | null>(auctionAddress || null);
   const [isDisconnected, setIsDisconnected] = useState<boolean>(false);
   const [showHowItWorks, setShowHowItWorks] = useState<boolean>(false);
   const [auctionItem, setAuctionItem] = useState<{
@@ -37,7 +49,7 @@ export const SealedAuctionFHE = () => {
   }>({
     name: "Welcome to Sealed Auction",
     description: "Select an auction from the marketplace to view details and place bids",
-    image: null,
+    image: auctionImage || null,
     category: "Welcome",
     seller: "" // Empty seller address by default
   });
@@ -448,7 +460,10 @@ export const SealedAuctionFHE = () => {
             </div>
             <div className="flex items-center space-x-4">
               <button
-                onClick={() => setShowHowItWorks(true)}
+                onClick={() => {
+                  setShowHowItWorks(true);
+                  onShowHowItWorks?.();
+                }}
                 className={`${
                   theme === 'dark' ? 'bg-gray-800/50 backdrop-blur-sm text-gray-100 border border-gray-600' : 
                   theme === 'orange' ? 'bg-orange-600/20 backdrop-blur-sm text-white border border-orange-300/30' :
@@ -475,6 +490,15 @@ export const SealedAuctionFHE = () => {
                 }</span>
                 <span className="hidden md:inline">{theme.charAt(0).toUpperCase() + theme.slice(1)}</span>
               </button>
+              {onBack && (
+                <button
+                  onClick={onBack}
+                  className="bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold hover:bg-gray-700 transition-all duration-300 flex items-center space-x-2 hover:scale-105 hover:shadow-lg"
+                >
+                  <span>←</span>
+                  <span>Back</span>
+                </button>
+              )}
               <button
                 onClick={() => setShowMarketplace(!showMarketplace)}
                 className="bg-white text-purple-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-all duration-300 flex items-center space-x-2 hover:scale-105 hover:shadow-lg"
