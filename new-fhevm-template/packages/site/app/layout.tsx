@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Providers } from "./providers";
-import Image from "next/image";
+import { ThemeProvider } from "../contexts/ThemeContext";
+import { Header } from "../components/Header";
 
 export const metadata: Metadata = {
-  title: "Zama FHEVM SDK Quickstart",
-  description: "Zama FHEVM SDK Quickstart app",
+  title: "Zama Sealed Auction Marketplace - Confidential Bidding with FHEVM",
+  description: "Experience the world's first fully homomorphic encrypted auction platform. Your bids remain completely private until the auction ends.",
 };
 
 export default async function RootLayout({
@@ -15,18 +16,13 @@ export default async function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`zama-bg text-foreground antialiased`}>
-        <div className="fixed inset-0 w-full h-full zama-bg z-[-20] min-w-[850px]"></div>
-        <main className="flex flex-col max-w-screen-lg mx-auto pb-20 min-w-[850px]">
-          <nav className="flex w-full px-3 md:px-0 h-fit py-10 justify-between items-center">
-            <Image
-              src="/zama-logo.svg"
-              alt="Zama Logo"
-              width={120}
-              height={120}
-            />
-          </nav>
-          <Providers>{children}</Providers>
+      <body className={`bg-white text-foreground antialiased`}>
+        <div className="fixed inset-0 w-full h-full bg-white z-[-20] min-w-[850px]"></div>
+        <main className="flex flex-col max-w-screen-2xl mx-auto pb-20 min-w-[850px]">
+          <ThemeProvider>
+            <Header />
+            <Providers>{children}</Providers>
+          </ThemeProvider>
         </main>
       </body>
     </html>
